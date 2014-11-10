@@ -110,7 +110,7 @@ public class LireValueSource extends ValueSource {
     public FunctionValues getValues(Map context, AtomicReaderContext readerContext) throws IOException {
         final FieldInfo fieldInfo = readerContext.reader().getFieldInfos().fieldInfo(field);
         if (fieldInfo != null && fieldInfo.getDocValuesType() == FieldInfo.DocValuesType.BINARY) {
-            final BinaryDocValues binaryValues = FieldCache.DEFAULT.getTerms(readerContext.reader(), field);
+            final BinaryDocValues binaryValues = FieldCache.DEFAULT.getTerms(readerContext.reader(), field, false);
             return new FunctionValues() {
                 BytesRef tmp = new BytesRef();
 
@@ -121,14 +121,14 @@ public class LireValueSource extends ValueSource {
 
                 @Override
                 public boolean bytesVal(int doc, BytesRef target) {
-                    binaryValues.get(doc, target);
+                    tmp = binaryValues.get(doc);
                     return target.length > 0;
                 }
 
                 // This is the actual value returned
                 @Override
                 public float floatVal(int doc) {
-                    binaryValues.get(doc, tmp);
+                    tmp = binaryValues.get(doc);
                     if (tmp.length > 0) {
                         tmpFeature.setByteArrayRepresentation(tmp.bytes, tmp.offset, tmp.length);
                         return tmpFeature.getDistance(feature);

@@ -159,7 +159,7 @@ public class LireRequestHandler extends RequestHandlerBase {
                 if (binaryValues == null)
                     System.err.println("Could not find the DocValues of the query document. Are they in the index?");
                 BytesRef bytesRef = new BytesRef();
-                binaryValues.get(hits.scoreDocs[0].doc, bytesRef);
+                bytesRef = binaryValues.get(hits.scoreDocs[0].doc);
 //                Document d = searcher.getIndexReader().document(hits.scoreDocs[0].doc);
                 String histogramFieldName = paramField.replace("_ha", "_hi");
                 queryFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
@@ -369,7 +369,7 @@ public class LireRequestHandler extends RequestHandlerBase {
         BytesRef bytesRef = new BytesRef();
         for (int i = 0; i < docs.scoreDocs.length; i++) {
             // using DocValues to retrieve the field values ...
-            binaryValues.get(docs.scoreDocs[i].doc, bytesRef);
+            bytesRef = binaryValues.get(docs.scoreDocs[i].doc);
             tmpFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             // Getting the document from the index.
             // This is the slow step based on the field compression of stored fields.
