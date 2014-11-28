@@ -48,7 +48,10 @@ import org.apache.commons.codec.binary.Base64;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.*;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Stack;
 
 /**
  * This indexing application allows for parallel extraction of global features from multiple image files for
@@ -67,13 +70,15 @@ import java.util.*;
  * <li>-f ... forces to overwrite the <outfile>. If the <outfile> already exists and -f is not given, then the operation is aborted.</li>
  * </ul>
  *
+ * TODO: Make feature list change-able
+ *
  * You then basically need to enrich the file with whatever metadata you prefer and send it to Solr using for instance curl:
  * <pre>curl http://localhost:9000/solr/lire/update  -H "Content-Type: text/xml" --data-binary @extracted_file.xml
  curl http://localhost:9000/solr/lire/update  -H "Content-Type: text/xml" --data-binary "<commit/>"</pre>
  * @author Mathias Lux, mathias@juggle.at on  13.08.2013
  */
 public class ParallelSolrIndexer implements Runnable {
-    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
+//    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
     private static boolean force = false;
     private static boolean individualFiles = false;
     private static int numberOfThreads = 4;
@@ -87,13 +92,13 @@ public class ParallelSolrIndexer implements Runnable {
     private int monitoringInterval = 10;
     private int maxSideLength = -1;
 
-    static {
-        classToPrefix.put(ColorLayout.class, "cl");
-        classToPrefix.put(EdgeHistogram.class, "eh");
-        classToPrefix.put(PHOG.class, "ph");
-        classToPrefix.put(OpponentHistogram.class, "oh");
-        classToPrefix.put(JCD.class, "jc");
-    }
+//    static {
+//        classToPrefix.put(ColorLayout.class, "cl");
+//        classToPrefix.put(EdgeHistogram.class, "eh");
+//        classToPrefix.put(PHOG.class, "ph");
+//        classToPrefix.put(OpponentHistogram.class, "oh");
+//        classToPrefix.put(JCD.class, "jc");
+//    }
 
 
     public ParallelSolrIndexer() {
@@ -282,10 +287,15 @@ public class ParallelSolrIndexer implements Runnable {
     }
 
     private void addFeatures(List features) {
-        features.add(new PHOG());
+        // original features
+//        features.add(new PHOG());
         features.add(new ColorLayout());
-        features.add(new EdgeHistogram());
+//        features.add(new EdgeHistogram());
         features.add(new JCD());
+
+        // new features
+        features.add(new CEDD());
+        features.add(new ScalableColor());
     }
 
     class Monitoring implements Runnable {
@@ -414,10 +424,11 @@ public class ParallelSolrIndexer implements Runnable {
                         sb.append("</field>");
 
                         for (LireFeature feature : features) {
-                            if (classToPrefix.get(feature.getClass()) != null) {
+                            String featureCode = FeatureRegistry.getCodeForClass(feature.getClass());
+                            if (featureCode != null) {
                                 feature.extract(img);
-                                String histogramField = classToPrefix.get(feature.getClass()) + "_hi";
-                                String hashesField = classToPrefix.get(feature.getClass()) + "_ha";
+                                String histogramField = FeatureRegistry.codeToFeatureField(featureCode);
+                                String hashesField = FeatureRegistry.codeToHashField(featureCode);
 
                                 sb.append("<field name=\"" + histogramField + "\">");
                                 sb.append(Base64.encodeBase64String(feature.getByteArrayRepresentation()));

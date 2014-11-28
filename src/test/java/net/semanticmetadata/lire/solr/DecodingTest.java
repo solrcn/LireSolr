@@ -1,6 +1,7 @@
 package net.semanticmetadata.lire.solr;
 
 import junit.framework.TestCase;
+import net.semanticmetadata.lire.imageanalysis.ColorLayout;
 import net.semanticmetadata.lire.imageanalysis.JCD;
 import net.semanticmetadata.lire.imageanalysis.PHOG;
 import org.apache.commons.codec.binary.Base64;
@@ -40,6 +41,13 @@ public class DecodingTest extends TestCase {
         byte[] bytes = Base64.decodeBase64(hist);
         JCD j = new JCD();
         j.setByteArrayRepresentation(bytes);
+    }
+
+    public void testEncodeImage() throws IOException {
+        ColorLayout cl = new ColorLayout();
+        cl.extract(ImageIO.read(new File("D:\\DataSets\\WIPO\\CA\\converted-0\\186924.png")));
+        String arg2 = Base64.encodeBase64String(cl.getByteArrayRepresentation());
+        System.out.println("cl=" + arg2);
     }
 
 }

@@ -39,7 +39,8 @@
 
 package net.semanticmetadata.lire.solr;
 
-import net.semanticmetadata.lire.imageanalysis.*;
+import net.semanticmetadata.lire.imageanalysis.EdgeHistogram;
+import net.semanticmetadata.lire.imageanalysis.LireFeature;
 import net.semanticmetadata.lire.impl.SimpleResult;
 import net.semanticmetadata.lire.indexing.hashing.BitSampling;
 import net.semanticmetadata.lire.utils.ImageUtils;
@@ -75,7 +76,7 @@ import java.util.*;
  */
 
 public class LireRequestHandler extends RequestHandlerBase {
-    private static HashMap<String, Class> fieldToClass = new HashMap<String, Class>(5);
+    //    private static HashMap<String, Class> fieldToClass = new HashMap<String, Class>(5);
     private long time = 0;
     private int countRequests = 0;
     private int defaultNumberOfResults = 60;
@@ -86,11 +87,11 @@ public class LireRequestHandler extends RequestHandlerBase {
     private int candidateResultNumber = 1500;
 
     static {
-        fieldToClass.put("cl_ha", ColorLayout.class);
-        fieldToClass.put("ph_ha", PHOG.class);
-        fieldToClass.put("oh_ha", OpponentHistogram.class);
-        fieldToClass.put("eh_ha", EdgeHistogram.class);
-        fieldToClass.put("jc_ha", JCD.class);
+//        fieldToClass.put("cl_ha", ColorLayout.class);
+//        fieldToClass.put("ph_ha", PHOG.class);
+//        fieldToClass.put("oh_ha", OpponentHistogram.class);
+//        fieldToClass.put("eh_ha", EdgeHistogram.class);
+//        fieldToClass.put("jc_ha", JCD.class);
 
         // one time hash function read ...
         try {
@@ -149,19 +150,19 @@ public class LireRequestHandler extends RequestHandlerBase {
             String paramField = "cl_ha";
             if (req.getParams().get("field") != null)
                 paramField = req.getParams().get("field");
-            LireFeature queryFeature = (LireFeature) fieldToClass.get(paramField).newInstance();
+            LireFeature queryFeature = (LireFeature) FeatureRegistry.getClassForHashField(paramField).newInstance();
             rsp.add("QueryField", paramField);
             rsp.add("QueryFeature", queryFeature.getClass().getName());
 
             if (hits.scoreDocs.length > 0) {
                 // Using DocValues to get the actual data from the index.
-                BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), paramField.replace("_ha", "_hi")); // ***  #
+                BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), FeatureRegistry.getFeatureFieldName(paramField)); // ***  #
                 if (binaryValues == null)
                     System.err.println("Could not find the DocValues of the query document. Are they in the index?");
                 BytesRef bytesRef = new BytesRef();
                 bytesRef = binaryValues.get(hits.scoreDocs[0].doc);
 //                Document d = searcher.getIndexReader().document(hits.scoreDocs[0].doc);
-                String histogramFieldName = paramField.replace("_ha", "_hi");
+//                String histogramFieldName = paramField.replace("_ha", "_hi");
                 queryFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
                 int paramRows = defaultNumberOfResults;
                 if (req.getParams().getInt("rows") != null)
@@ -231,13 +232,10 @@ public class LireRequestHandler extends RequestHandlerBase {
             BufferedImage img = ImageIO.read(new URL(paramUrl).openStream());
             img = ImageUtils.trimWhiteSpace(img);
             // getting the right feature per field:
-            if (paramField == null) feat = new EdgeHistogram();
+            if (paramField == null || FeatureRegistry.getClassForHashField(paramField) == null) // if the feature is not registered.
+                feat = new EdgeHistogram();
             else {
-                if (paramField.equals("cl_ha")) feat = new ColorLayout();
-                else if (paramField.equals("jc_ha")) feat = new JCD();
-                else if (paramField.equals("ph_ha")) feat = new PHOG();
-                else if (paramField.equals("oh_ha")) feat = new OpponentHistogram();
-                else feat = new EdgeHistogram();
+                feat = (LireFeature) FeatureRegistry.getClassForHashField(paramField).newInstance();
             }
             feat.extract(img);
             int[] hashes = BitSampling.generateHashes(feat.getDoubleHistogram());
@@ -267,13 +265,10 @@ public class LireRequestHandler extends RequestHandlerBase {
             BufferedImage img = ImageIO.read(new URL(paramUrl).openStream());
             img = ImageUtils.trimWhiteSpace(img);
             // getting the right feature per field:
-            if (paramField == null) feat = new EdgeHistogram();
+            if (paramField == null || FeatureRegistry.getClassForHashField(paramField) == null) // if the feature is not registered.
+                feat = new EdgeHistogram();
             else {
-                if (paramField.equals("cl_ha")) feat = new ColorLayout();
-                else if (paramField.equals("jc_ha")) feat = new JCD();
-                else if (paramField.equals("ph_ha")) feat = new PHOG();
-                else if (paramField.equals("oh_ha")) feat = new OpponentHistogram();
-                else feat = new EdgeHistogram();
+                feat = (LireFeature) FeatureRegistry.getClassForHashField(paramField).newInstance();
             }
             feat.extract(img);
             rsp.add("histogram", Base64.encodeBase64String(feat.getByteArrayRepresentation()));
@@ -327,7 +322,7 @@ public class LireRequestHandler extends RequestHandlerBase {
 //        System.out.println("** Doing search.");
 
         // query feature
-        LireFeature queryFeature = (LireFeature) fieldToClass.get(paramField).newInstance();
+        LireFeature queryFeature = (LireFeature) FeatureRegistry.getClassForHashField(paramField).newInstance();
         queryFeature.setByteArrayRepresentation(featureVector);
 
         // get results:
@@ -339,7 +334,7 @@ public class LireRequestHandler extends RequestHandlerBase {
      *
      * @param rsp
      * @param searcher
-     * @param field
+     * @param hashFieldName the hash field name
      * @param maximumHits
      * @param query
      * @param queryFeature
@@ -347,7 +342,7 @@ public class LireRequestHandler extends RequestHandlerBase {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    private void doSearch(SolrQueryResponse rsp, SolrIndexSearcher searcher, String field, int maximumHits, BooleanQuery query, LireFeature queryFeature) throws IOException, IllegalAccessException, InstantiationException {
+    private void doSearch(SolrQueryResponse rsp, SolrIndexSearcher searcher, String hashFieldName, int maximumHits, BooleanQuery query, LireFeature queryFeature) throws IOException, IllegalAccessException, InstantiationException {
         // temp feature instance
         LireFeature tmpFeature = queryFeature.getClass().newInstance();
         // Taking the time of search for statistical purposes.
@@ -362,11 +357,10 @@ public class LireRequestHandler extends RequestHandlerBase {
         float maxDistance = -1f;
         float tmpScore;
 
-        String name = field.replace("_ha", "_hi");
-        Document d;
+        String featureFieldName = FeatureRegistry.getFeatureFieldName(hashFieldName);
         // iterating and re-ranking the documents.
-        BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), name); // ***  #
-        BytesRef bytesRef = new BytesRef();
+        BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), featureFieldName); // ***  #
+        BytesRef bytesRef;// = new BytesRef();
         for (int i = 0; i < docs.scoreDocs.length; i++) {
             // using DocValues to retrieve the field values ...
             bytesRef = binaryValues.get(docs.scoreDocs[i].doc);
