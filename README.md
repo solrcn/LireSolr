@@ -164,6 +164,22 @@ Indexing
 Check ParallelSolrIndexer.java for indexing. It creates XML documents (either one per image or one single large file)
 to be sent to the Solr Server.
 
+ParallelSolrIndexer
+===================
+This help text is shown if you start the ParallelSolrIndexer with the '-h' option.
+
+$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>]
+
+Note: if you don't specify an outfile just ".xml" is appended to the infile for output.
+
+-n ... number of threads should be something your computer can cope with. default is 4.
+-f ... forces overwrite of outfile
+-p ... enables image processing before indexing (despeckle, trim white space)
+-m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.
+
+LireEntityProcessor
+===================
+
 Another way is to use the LireEntityProcessor. Then you have to reference the solr-data-config.xml file in the
 solrconfig.xml, and then give the configuration for the EntityProcessor like this:
 
@@ -194,4 +210,4 @@ solrconfig.xml, and then give the configuration for the EntityProcessor like thi
         </document>
     </dataConfig>
 
-*Mathias Lux, 2013-12-19*
+*Mathias Lux, 2014-11-30*

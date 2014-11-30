@@ -39,6 +39,7 @@
 
 package net.semanticmetadata.lire.solr;
 
+import com.jhlabs.image.DespeckleFilter;
 import net.semanticmetadata.lire.imageanalysis.*;
 import net.semanticmetadata.lire.indexing.hashing.BitSampling;
 import net.semanticmetadata.lire.indexing.parallel.WorkItem;
@@ -79,7 +80,7 @@ import java.util.Stack;
  */
 public class ParallelSolrIndexer implements Runnable {
 //    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
-    private static boolean force = false;
+    private boolean force = false;
     private static boolean individualFiles = false;
     private static int numberOfThreads = 4;
     Stack<WorkItem> images = new Stack<WorkItem>();
@@ -90,16 +91,8 @@ public class ParallelSolrIndexer implements Runnable {
     File fileList = null;
     File outFile = null;
     private int monitoringInterval = 10;
-    private int maxSideLength = -1;
-
-//    static {
-//        classToPrefix.put(ColorLayout.class, "cl");
-//        classToPrefix.put(EdgeHistogram.class, "eh");
-//        classToPrefix.put(PHOG.class, "ph");
-//        classToPrefix.put(OpponentHistogram.class, "oh");
-//        classToPrefix.put(JCD.class, "jc");
-//    }
-
+    private int maxSideLength = 512;
+    private boolean isPreprocessing = true;
 
     public ParallelSolrIndexer() {
         // default constructor.
@@ -145,10 +138,13 @@ public class ParallelSolrIndexer implements Runnable {
                     }
                 } else printHelp();
             } else if (arg.startsWith("-f")) {
-                force = true;
+                e.setForce(true);
+            } else if (arg.startsWith("-p")) {
+                e.setPreprocessing(true);
             } else if (arg.startsWith("-h")) {
                 // help
                 printHelp();
+                System.exit(0);
             } else if (arg.startsWith("-n")) {
                 if ((i + 1) < args.length)
                     try {
@@ -169,16 +165,20 @@ public class ParallelSolrIndexer implements Runnable {
     }
 
     private static void printHelp() {
-        System.out.println("Help for the ParallelSolrIndexer class.\n" +
-                "=============================\n" +
+        System.out.println("Help for the ParallelSolrIndexer Class\n" +
+                "======================================\n" +
                 "This help text is shown if you start the ParallelSolrIndexer with the '-h' option.\n" +
                 "\n" +
                 "1. Usage\n" +
                 "========\n" +
-                "$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-m <max_side_length>]\n" +
+                "$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>]\n" +
                 "\n" +
                 "Note: if you don't specify an outfile just \".xml\" is appended to the infile for output.\n" +
-                "\n");
+                "\n" +
+                "-n ... number of threads should be something your computer can cope with. default is 4.\n" +
+                "-f ... forces overwrite of outfile\n" +
+                "-p ... enables image processing before indexing (despeckle, trim white space)\n" +
+                "-m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.");
     }
 
     public static String arrayToString(int[] array) {
@@ -288,14 +288,30 @@ public class ParallelSolrIndexer implements Runnable {
 
     private void addFeatures(List features) {
         // original features
-//        features.add(new PHOG());
+        features.add(new PHOG());
         features.add(new ColorLayout());
-//        features.add(new EdgeHistogram());
+        features.add(new EdgeHistogram());
         features.add(new JCD());
 
         // new features
-        features.add(new CEDD());
-        features.add(new ScalableColor());
+//        features.add(new CEDD());
+//        features.add(new ScalableColor());
+    }
+
+    public boolean isPreprocessing() {
+        return isPreprocessing;
+    }
+
+    public void setPreprocessing(boolean isPreprocessing) {
+        this.isPreprocessing = isPreprocessing;
+    }
+
+    public boolean isForce() {
+        return force;
+    }
+
+    public void setForce(boolean force) {
+        this.force = force;
     }
 
     class Monitoring implements Runnable {
@@ -403,8 +419,24 @@ public class ParallelSolrIndexer implements Runnable {
                     if (!locallyEnded) {
                         sb.delete(0, sb.length());
                         ByteArrayInputStream b = new ByteArrayInputStream(tmp.getBuffer());
-                        BufferedImage img = ImageUtils.trimWhiteSpace(ImageIO.read(b));
-                        if (maxSideLength > 50) img = ImageUtils.scaleImage(img, maxSideLength);
+
+                        // reads the image. Make sure twelve monkeys lib is in the path to read all jpegs and tiffs.
+                        BufferedImage read = ImageIO.read(b);
+
+                        // --------< preprocessing >-------------------------
+                        // converts color space to INT_RGB
+                        BufferedImage img = ImageUtils.createWorkingCopy(read);;
+                        if (isPreprocessing) {
+                            // despeckle
+                            DespeckleFilter df = new DespeckleFilter();
+                            img = df.filter(img, null);
+                            img = ImageUtils.trimWhiteSpace(img); // trims white space
+                        }
+                        // --------< / preprocessing >-------------------------
+
+                        if (maxSideLength > 50)
+                            img = ImageUtils.scaleImage(img, maxSideLength); // scales image to 512 max sidelength.
+
                         else if (img.getWidth() < 32 || img.getHeight() < 32) { // image is too small to be worked with, for now I just do an upscale.
                             double scaleFactor = 128d;
                             if (img.getWidth() > img.getHeight()) {
