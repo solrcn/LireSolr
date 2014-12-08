@@ -369,7 +369,7 @@ public class LireRequestHandler extends RequestHandlerBase {
             // This is the slow step based on the field compression of stored fields.
 //            tmpFeature.setByteArrayRepresentation(d.getBinaryValue(name).bytes, d.getBinaryValue(name).offset, d.getBinaryValue(name).length);
             tmpScore = queryFeature.getDistance(tmpFeature);
-            if (resultScoreDocs.size() < maximumHits) {
+            if (resultScoreDocs.size() < maximumHits) { // todo: There's potential here for a memory saver, think of a clever data structure that can do the trick without creating a new SimpleResult for each result.
                 resultScoreDocs.add(new SimpleResult(tmpScore, searcher.doc(docs.scoreDocs[i].doc), docs.scoreDocs[i].doc));
                 maxDistance = resultScoreDocs.last().getDistance();
             } else if (tmpScore < maxDistance) {

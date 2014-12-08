@@ -40,9 +40,13 @@
 package net.semanticmetadata.lire.solr;
 
 import com.jhlabs.image.DespeckleFilter;
-import net.semanticmetadata.lire.imageanalysis.*;
+import net.semanticmetadata.lire.imageanalysis.CEDD;
+import net.semanticmetadata.lire.imageanalysis.ColorLayout;
+import net.semanticmetadata.lire.imageanalysis.EdgeHistogram;
+import net.semanticmetadata.lire.imageanalysis.LireFeature;
 import net.semanticmetadata.lire.indexing.hashing.BitSampling;
 import net.semanticmetadata.lire.indexing.parallel.WorkItem;
+import net.semanticmetadata.lire.solr.indexing.ImageDataProcessor;
 import net.semanticmetadata.lire.utils.ImageUtils;
 import org.apache.commons.codec.binary.Base64;
 
@@ -58,10 +62,10 @@ import java.util.Stack;
  * This indexing application allows for parallel extraction of global features from multiple image files for
  * use with the LIRE Solr plugin. It basically takes a list of images (ie. created by something like
  * "dir /s /b > list.txt" or "ls [some parameters] > list.txt".
- *
+ * <p/>
  * use it like:
  * <pre>$> java -jar lire-request-handler.jar -i <infile> [-o <outfile>] [-n <threads>] [-m <max_side_length>] [-f]</pre>
- *
+ * <p/>
  * Available options are:
  * <ul>
  * <li>-i <infile> … gives a file with a list of images to be indexed, one per line.</li>
@@ -69,17 +73,20 @@ import java.util.Stack;
  * <li>-n <threads> ... gives the number of threads used for extraction. The number of cores is a good value for that.</li>
  * <li>-m <max-side-length> ... gives a maximum side length for extraction. This option is useful if very larger images are indexed.</li>
  * <li>-f ... forces to overwrite the <outfile>. If the <outfile> already exists and -f is not given, then the operation is aborted.</li>
+ * <li>-p ... enables image processing before indexing (despeckle, trim white space)</li>
+ * <li>-r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor that provides additional fields.</li>
  * </ul>
- *
+ * <p/>
  * TODO: Make feature list change-able
- *
+ * <p/>
  * You then basically need to enrich the file with whatever metadata you prefer and send it to Solr using for instance curl:
  * <pre>curl http://localhost:9000/solr/lire/update  -H "Content-Type: text/xml" --data-binary @extracted_file.xml
- curl http://localhost:9000/solr/lire/update  -H "Content-Type: text/xml" --data-binary "<commit/>"</pre>
+ * curl http://localhost:9000/solr/lire/update  -H "Content-Type: text/xml" --data-binary "<commit/>"</pre>
+ *
  * @author Mathias Lux, mathias@juggle.at on  13.08.2013
  */
 public class ParallelSolrIndexer implements Runnable {
-//    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
+    //    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
     private boolean force = false;
     private static boolean individualFiles = false;
     private static int numberOfThreads = 4;
@@ -93,6 +100,7 @@ public class ParallelSolrIndexer implements Runnable {
     private int monitoringInterval = 10;
     private int maxSideLength = 512;
     private boolean isPreprocessing = true;
+    private Class imageDataProcessor = null;
 
     public ParallelSolrIndexer() {
         // default constructor.
@@ -137,6 +145,19 @@ public class ParallelSolrIndexer implements Runnable {
                         printHelp();
                     }
                 } else printHelp();
+            } else if (arg.startsWith("-r")) {
+                // image data processor class.
+                if ((i + 1) < args.length) {
+                    try {
+                        Class<?> imageDataProcessorClass = Class.forName(args[i + 1]);
+                        if (imageDataProcessorClass.newInstance() instanceof ImageDataProcessor)
+                            e.setImageDataProcessor(imageDataProcessorClass);
+                    } catch (Exception e1) {
+                        System.err.println("Did not find imageProcessor class: " + e1.getMessage());
+                        printHelp();
+                        System.exit(0);
+                    }
+                } else printHelp();
             } else if (arg.startsWith("-f")) {
                 e.setForce(true);
             } else if (arg.startsWith("-p")) {
@@ -165,20 +186,16 @@ public class ParallelSolrIndexer implements Runnable {
     }
 
     private static void printHelp() {
-        System.out.println("Help for the ParallelSolrIndexer Class\n" +
-                "======================================\n" +
-                "This help text is shown if you start the ParallelSolrIndexer with the '-h' option.\n" +
-                "\n" +
-                "1. Usage\n" +
-                "========\n" +
-                "$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>]\n" +
+        System.out.println("ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>]\n" +
                 "\n" +
                 "Note: if you don't specify an outfile just \".xml\" is appended to the infile for output.\n" +
                 "\n" +
                 "-n ... number of threads should be something your computer can cope with. default is 4.\n" +
                 "-f ... forces overwrite of outfile\n" +
                 "-p ... enables image processing before indexing (despeckle, trim white space)\n" +
-                "-m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.");
+                "-m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.\n" +
+                "-r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor\n" +
+                "       that provides additional fields. ");
     }
 
     public static String arrayToString(int[] array) {
@@ -217,6 +234,10 @@ public class ParallelSolrIndexer implements Runnable {
         this.outFile = outFile;
     }
 
+    public void setImageDataProcessor(Class imageDataProcessor) {
+        this.imageDataProcessor = imageDataProcessor;
+    }
+
     public int getMaxSideLength() {
         return maxSideLength;
     }
@@ -253,7 +274,8 @@ public class ParallelSolrIndexer implements Runnable {
         }
         try {
             if (!individualFiles) {
-                dos = new BufferedOutputStream(new FileOutputStream(outFile));
+                // create a BufferedOutputStream with a large buffer
+                dos = new BufferedOutputStream(new FileOutputStream(outFile), 1024*1024*8);
                 dos.write("<add>\n".getBytes());
             }
             Thread p = new Thread(new Producer());
@@ -288,13 +310,13 @@ public class ParallelSolrIndexer implements Runnable {
 
     private void addFeatures(List features) {
         // original features
-        features.add(new PHOG());
+//        features.add(new PHOG());
         features.add(new ColorLayout());
         features.add(new EdgeHistogram());
-        features.add(new JCD());
+//        features.add(new JCD());
 
         // new features
-//        features.add(new CEDD());
+        features.add(new CEDD());
 //        features.add(new ScalableColor());
     }
 
@@ -356,7 +378,7 @@ public class ParallelSolrIndexer implements Runnable {
                             tmpSize = images.size();
                             // if the cache is too crowded, then wait.
                             if (tmpSize > 500) images.wait(500);
-                            // if the cache is too small, dont' notify.
+                            // if the cache is too small, don't notify.
                             images.notify();
                         }
                     } catch (Exception e) {
@@ -422,10 +444,10 @@ public class ParallelSolrIndexer implements Runnable {
 
                         // reads the image. Make sure twelve monkeys lib is in the path to read all jpegs and tiffs.
                         BufferedImage read = ImageIO.read(b);
-
                         // --------< preprocessing >-------------------------
                         // converts color space to INT_RGB
-                        BufferedImage img = ImageUtils.createWorkingCopy(read);;
+                        BufferedImage img = ImageUtils.createWorkingCopy(read);
+                        ;
                         if (isPreprocessing) {
                             // despeckle
                             DespeckleFilter df = new DespeckleFilter();
@@ -444,16 +466,34 @@ public class ParallelSolrIndexer implements Runnable {
                             } else {
                                 scaleFactor = (128d / (double) img.getHeight());
                             }
-                            img = ImageUtils.scaleImage(img, ((int) (scaleFactor * img.getWidth())), (int) (scaleFactor*img.getHeight()));
+                            img = ImageUtils.scaleImage(img, ((int) (scaleFactor * img.getWidth())), (int) (scaleFactor * img.getHeight()));
                         }
-                        byte[] tmpBytes = tmp.getFileName().getBytes();
+
+                        ImageDataProcessor idp = null;
+                        try {
+                            if (imageDataProcessor != null) {
+                                idp = (ImageDataProcessor) imageDataProcessor.newInstance();
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Could not instantiate ImageDataProcessor!");
+                            e.printStackTrace();
+                        }
+                        // --------< creating doc >-------------------------
                         sb.append("<doc>");
                         sb.append("<field name=\"id\">");
-                        sb.append(tmp.getFileName());
+                        if (idp == null)
+                            sb.append(tmp.getFileName());
+                        else
+                            sb.append(idp.getIdentifier(tmp.getFileName()));
                         sb.append("</field>");
                         sb.append("<field name=\"title\">");
-                        sb.append(new File(tmp.getFileName()).getName());
+                        if (idp == null)
+                            sb.append(tmp.getFileName());
+                        else
+                            sb.append(idp.getTitle(tmp.getFileName()));
                         sb.append("</field>");
+                        if (idp != null)
+                            sb.append(idp.getAdditionalFields(tmp.getFileName()));
 
                         for (LireFeature feature : features) {
                             String featureCode = FeatureRegistry.getCodeForClass(feature.getClass());
@@ -471,11 +511,14 @@ public class ParallelSolrIndexer implements Runnable {
                             }
                         }
                         sb.append("</doc>\n");
+
+                        // --------< / creating doc >-------------------------
+
                         // finally write everything to the stream - in case no exception was thrown..
                         if (!individualFiles) {
                             synchronized (dos) {
                                 dos.write(sb.toString().getBytes());
-                                dos.flush();
+                                // dos.flush();  // flushing takes too long ... better not.
                             }
                         } else {
                             OutputStream mos = new BufferedOutputStream(new FileOutputStream(tmp.getFileName() + "_solr.xml"));
@@ -484,6 +527,11 @@ public class ParallelSolrIndexer implements Runnable {
                             mos.close();
                         }
                     }
+//                    if (!individualFiles) {
+//                        synchronized (dos) {
+//                            dos.flush();
+//                        }
+//                    }
                 } catch (Exception e) {
                     System.err.println("Error processing file " + tmp.getFileName());
                     e.printStackTrace();

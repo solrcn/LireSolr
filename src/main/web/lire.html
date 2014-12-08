@@ -5,7 +5,30 @@
     <title>LIRE - Lucene Image Retrieval</title>
     <link href="style.css" rel="stylesheet" type="text/css"/>
 	<script src="js/jquery-l.js"></script>
-</head>
+
+	<script>
+		function reWriteImageUrl(imgUrlOriginal) {
+			imgUrl = "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/images01/" + imgUrlOriginal;
+			// imgUrl = imgUrlOriginal.replace("D:\\DataSets\\MirFlickr\\", "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/images01/");
+			// imgUrl = imgUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
+			// imgUrl = imgUrl.replace(".png", ".jpg");
+			return imgUrl;
+		}
+		
+		function getCBIRLinks(myID) {
+			result = "";
+			// result += "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, ";
+			// result += "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'ce_ha');\">CEDD</a>, ";
+			//result += "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a> ";
+			return result;// + "</br>";
+		}
+		
+	</script>
+
+	</head>
 
 <body>
 <div class="main">
@@ -23,7 +46,7 @@
 		$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 		queryString =  "lire/select?q="+$('#tagsearch').val()+"&wt=json&rows=60";
 		if ($('#sorthist').val()) 
-			queryString = queryString + "&sort=lirefunc("+$('#sorthist').val()+")+asc";
+			queryString = queryString + "&sort=lirefunc("+$('#sorthist').val()+")+asc&randomParameter="+Math.floor(Math.random()*50000);
 		// http://localhost:9000/solr/lire/select?q=tags%3Aaustria%0A&wt=json&indent=true
 		console.log(queryString);
 		$.getJSON(queryString, function( myResult ) {
@@ -35,23 +58,19 @@
 			var last = $("#results");
 			for (var i =0; i< myResult.response.docs.length; i++) {
 				myID = myResult.response.docs[i].id.toString();
-				imageUrl = myID.replace("CA", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_ca_jpg");
-				imageUrl = imageUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
-				imageUrl = imageUrl.replace(".png", ".jpg");
+				imageUrl = reWriteImageUrl(myID);
 				tags = myResult.response.docs[i].tags[0].toString();
 				if (tags.length > 60) tags = tags.substring(0, 57) + "...";
-				recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\"images/"+imageUrl+"\" title=\""+myResult.response.docs[i].tags[0].toString()+"\"/>"
+				recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" title=\""+myResult.response.docs[i].tags[0].toString()+"\"/>"
 					+ "<div align=\"center\" class=\"searchLink\">"
 					// + "d="+myResult.docs[i].d+"<br/>"
 					// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
-					+ "CBIR: <a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a> <br/>"
-					+ " Sort: <a href=\"javascript:extract('cl','http://localhost:9000/solr/images/"+myID+"');\">CL</a>, "
-					+ "<a href=\"javascript:extract('ph','http://localhost:9000/solr/images/"+myID+"');\">PH</a>, "
-					+ "<a href=\"javascript:extract('eh','http://localhost:9000/solr/images/"+myID+"');\">EH</a>, "
-					+ "<a href=\"javascript:extract('jc','http://localhost:9000/solr/images/"+myID+"');\">JCD</a> <br/>"
+					+ "CBIR: " + getCBIRLinks(myID)
+					+ " Sort: "
+					+ "<a href=\"javascript:extract('cl','"+imageUrl+"');\">CL</a>, "
+					+ "<a href=\"javascript:extract('ce','"+imageUrl+"');\">CEDD</a>, "
+					+ "<a href=\"javascript:extract('eh','"+imageUrl+"');\">EH</a> <br/>"
+					// + "<a href=\"javascript:extract('jc','"+imageUrl+"');\">JCD</a> "
 					+ tags
 					+ "</div></div>" );
 				recent.insertAfter(last);
@@ -77,17 +96,10 @@ $( document ).ready(function() {
 		var last = $("#results");
 		for (var i =0; i< myResult.docs.length; i++) {
 			myID = myResult.docs[i].id.toString();
-			imageUrl = myID.replace("CA", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_ca_jpg");
-			imageUrl = imageUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
-			imageUrl = imageUrl.replace(".png", ".jpg");
-			recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\"images/"+imageUrl+"\" />"
-				+ "<div align=\"center\" class=\"searchLink\">"
-				// + "d="+myResult.docs[i].d+"<br/>"
-				// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a> "
+			imageUrl = reWriteImageUrl(myID);
+			recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" />"
+				+ "<div align=\"center\" class=\"searchLink\">" 
+				+ getCBIRLinks(myID)
 				// + "<a href=\"javascript:extract('http://localhost:9000/solr/images/"+myID+"');\">Extract</a>, "
 				+ "</div></div>" );
 			recent.insertAfter(last);
@@ -134,17 +146,11 @@ function search(idString, field) {
 			var last = $("#results");
 			for (var i =0; i< myResult.docs.length; i++) {
 				myID = myResult.docs[i].id.toString();
-				imageUrl = myID.replace("CA", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_ca_jpg");
-				imageUrl = imageUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
-				imageUrl = imageUrl.replace(".png", ".jpg");
-				recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\"images/"+imageUrl+"\" />"
+				imageUrl = reWriteImageUrl(myID);
+				recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" />"
 					+ "<div class=\"searchLink\">"
-					 + "d="+myResult.docs[i].d+"<br/>"
-					// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, "
-					+ "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a>"
+					+ "d="+myResult.docs[i].d+"<br/>"
+					+ getCBIRLinks(myID)
 					+ "</div></div>" );
 				recent.insertAfter(last);
 				last=recent;
@@ -174,17 +180,11 @@ function searchUrl(field) {
 		var last = $("#results");
 		for (var i =0; i< myResult.docs.length; i++) {
 			myID = myResult.docs[i].id.toString();
-			imageUrl = myID.replace("CA", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_ca_jpg");
-			imageUrl = imageUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
-			imageUrl = imageUrl.replace(".png", ".jpg");
-			recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\"images/"+imageUrl+"\" />"
+			imageUrl = reWriteImageUrl(myID);
+			recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" />"
 				+ "<div class=\"searchLink\">"
 				+ "d="+myResult.docs[i].d+"<br/>"
-				// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, "
-				+ "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a>"
+				+ getCBIRLinks(myID)
 				+ "</div></div>" );
 			recent.insertAfter(last);
 			last=recent;

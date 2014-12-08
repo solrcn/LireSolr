@@ -74,11 +74,11 @@ public class FeatureRegistry {
 
     /**
      * Used to retrieve a registered class for a given field name in SOLR for the feature.
-     * @param featureFiledName the name of the field containing the histogram
+     * @param featureFieldName the name of the field containing the histogram
      * @return the class for the given field or null if not registered.
      */
-    public static Class getClassForFeatureField(String featureFiledName) {
-        return featureFieldToClass.get(featureFiledName);
+    public static Class getClassForFeatureField(String featureFieldName) {
+        return featureFieldToClass.get(featureFieldName);
     }
 
     /**

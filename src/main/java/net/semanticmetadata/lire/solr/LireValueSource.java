@@ -39,7 +39,8 @@
 
 package net.semanticmetadata.lire.solr;
 
-import net.semanticmetadata.lire.imageanalysis.*;
+import net.semanticmetadata.lire.imageanalysis.EdgeHistogram;
+import net.semanticmetadata.lire.imageanalysis.LireFeature;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.FieldInfo;
@@ -69,40 +70,41 @@ public class LireValueSource extends ValueSource {
     String objectHashBase = null; // used to store the combination of parameters to create a way to counter caching of functions with different function values.
 
     /**
-     * @param featureField
+     * @param featureField the field of the feature used for sorting.
      * @param hist
      * @param maxDistance  the distance value returned if there is no distance calculation possible.
      */
     public LireValueSource(String featureField, byte[] hist, double maxDistance) {
         if (featureField != null) field = featureField;
-        if (!field.endsWith("_hi")) field += "_hi";
+        if (!field.endsWith("_hi")) { // TODO: Make that somewhat not so string dependent .. maybe connect with the postfix in FeatureRegistry
+            field += "_hi";
+        }
         this.histogramData = hist;
         this.maxDistance = maxDistance;
 
+        // get the feature from the feature registry.
         if (field == null) {
             feature = new EdgeHistogram();
             tmpFeature = new EdgeHistogram();
         } else {
-            if (field.startsWith("cl")) {
-                feature = new ColorLayout();
-                tmpFeature = new ColorLayout();
-            } else if (field.startsWith("jc")) {
-                feature = new JCD();
-                tmpFeature = new JCD();
-            } else if (field.startsWith("ph")) {
-                feature = new PHOG();
-                tmpFeature = new PHOG();
-            } else if (field.startsWith("oh")) {
-                feature = new OpponentHistogram();
-                tmpFeature = new OpponentHistogram();
-            } else {
-                feature = new EdgeHistogram();
-                tmpFeature = new EdgeHistogram();
+            try {
+                if (FeatureRegistry.getClassForFeatureField(field)!=null) {// check if feature is registered.
+                    feature = (LireFeature) FeatureRegistry.getClassForFeatureField(field).newInstance();
+                    tmpFeature = (LireFeature) FeatureRegistry.getClassForFeatureField(field).newInstance();
+                } else {
+                    System.err.println("Feature " + field + " is not registered.");
+                }
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
             }
         }
+
         // debug ...
         System.out.println("Setting " + feature.getClass().getName() + " to " + Base64.byteArrayToBase64(hist, 0, hist.length));
-        // adding all parameters to a string to create a
+
+        // adding all parameters to a string to create a hash.
         objectHashBase = field + Arrays.toString(hist) + maxDistance;
         feature.setByteArrayRepresentation(hist);
     }

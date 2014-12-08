@@ -168,7 +168,7 @@ ParallelSolrIndexer
 ===================
 This help text is shown if you start the ParallelSolrIndexer with the '-h' option.
 
-$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>]
+$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>]
 
 Note: if you don't specify an outfile just ".xml" is appended to the infile for output.
 
@@ -176,6 +176,8 @@ Note: if you don't specify an outfile just ".xml" is appended to the infile for 
 -f ... forces overwrite of outfile
 -p ... enables image processing before indexing (despeckle, trim white space)
 -m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.
+-r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor
+       that provides additional fields.
 
 LireEntityProcessor
 ===================
