@@ -4,6 +4,7 @@ import junit.framework.TestCase;
 import net.semanticmetadata.lire.imageanalysis.ColorLayout;
 import net.semanticmetadata.lire.imageanalysis.JCD;
 import net.semanticmetadata.lire.imageanalysis.PHOG;
+import net.semanticmetadata.lire.indexing.hashing.BitSampling;
 import org.apache.commons.codec.binary.Base64;
 
 import javax.imageio.ImageIO;
@@ -44,10 +45,19 @@ public class DecodingTest extends TestCase {
     }
 
     public void testEncodeImage() throws IOException {
+        BitSampling.readHashFunctions();
         ColorLayout cl = new ColorLayout();
-        cl.extract(ImageIO.read(new File("D:\\DataSets\\WIPO\\CA\\converted-0\\186924.png")));
+        cl.extract(ImageIO.read(new File("D:\\DataSets\\MirFlickr\\1\\im6505.jpg")));
+        int[] ints = BitSampling.generateHashes(cl.getDoubleHistogram());
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ints.length; i++) {
+            int anInt = ints[i];
+            sb.append("cl_ha:" + Integer.toHexString(ints[i]) + " ");
+        }
+        System.out.println(sb.toString());
         String arg2 = Base64.encodeBase64String(cl.getByteArrayRepresentation());
         System.out.println("cl=" + arg2);
+
     }
 
 }

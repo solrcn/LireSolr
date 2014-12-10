@@ -86,6 +86,7 @@ import java.util.Stack;
  * @author Mathias Lux, mathias@juggle.at on  13.08.2013
  */
 public class ParallelSolrIndexer implements Runnable {
+    private final int maxCacheSize = 500;
     //    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
     private boolean force = false;
     private static boolean individualFiles = false;
@@ -127,7 +128,10 @@ public class ParallelSolrIndexer implements Runnable {
                 // infile ...
                 if ((i + 1) < args.length)
                     e.setFileList(new File(args[i + 1]));
-                else printHelp();
+                else {
+                    System.err.println("Could not set out file.");
+                    printHelp();
+                }
             } else if (arg.startsWith("-o")) {
                 // out file, if it's not set a single file for each input image is created.
                 if ((i + 1) < args.length)
@@ -278,16 +282,16 @@ public class ParallelSolrIndexer implements Runnable {
                 dos = new BufferedOutputStream(new FileOutputStream(outFile), 1024*1024*8);
                 dos.write("<add>\n".getBytes());
             }
-            Thread p = new Thread(new Producer());
+            Thread p = new Thread(new Producer(), "Producer");
             p.start();
             LinkedList<Thread> threads = new LinkedList<Thread>();
             long l = System.currentTimeMillis();
             for (int i = 0; i < numberOfThreads; i++) {
-                Thread c = new Thread(new Consumer());
+                Thread c = new Thread(new Consumer(), "Consumer-"+i);
                 c.start();
                 threads.add(c);
             }
-            Thread m = new Thread(new Monitoring());
+            Thread m = new Thread(new Monitoring(), "Monitoring");
             m.start();
             for (Iterator<Thread> iterator = threads.iterator(); iterator.hasNext(); ) {
                 iterator.next().join();
@@ -366,7 +370,6 @@ public class ParallelSolrIndexer implements Runnable {
                 File next = null;
                 while ((file = br.readLine()) != null) {
                     next = new File(file);
-                    BufferedImage img = null;
                     try {
                         int fileSize = (int) next.length();
                         byte[] buffer = new byte[fileSize];
@@ -377,15 +380,17 @@ public class ParallelSolrIndexer implements Runnable {
                             images.add(new WorkItem(path, buffer));
                             tmpSize = images.size();
                             // if the cache is too crowded, then wait.
-                            if (tmpSize > 500) images.wait(500);
                             // if the cache is too small, don't notify.
+                            if (tmpSize > maxCacheSize) {
+                                images.wait(500);
+                            }
                             images.notify();
                         }
                     } catch (Exception e) {
                         System.err.println("Could not read image " + file + ": " + e.getMessage());
                     }
                     try {
-                        if (tmpSize > 500) Thread.sleep(1000);
+                        if (tmpSize > maxCacheSize) Thread.sleep(1000);
 //                        else Thread.sleep(2);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -414,9 +419,6 @@ public class ParallelSolrIndexer implements Runnable {
         }
 
         public void run() {
-            byte[] myBuffer = new byte[1024 * 1024 * 10];
-            int bufferCount = 0;
-
             while (!locallyEnded) {
                 synchronized (images) {
                     // we wait for the stack to be either filled or empty & not being filled any more.
@@ -435,6 +437,7 @@ public class ParallelSolrIndexer implements Runnable {
                         tmp = images.pop();
                         count++;
                         overallCount++;
+                        images.notifyAll();
                     }
                 }
                 try {
@@ -447,7 +450,6 @@ public class ParallelSolrIndexer implements Runnable {
                         // --------< preprocessing >-------------------------
                         // converts color space to INT_RGB
                         BufferedImage img = ImageUtils.createWorkingCopy(read);
-                        ;
                         if (isPreprocessing) {
                             // despeckle
                             DespeckleFilter df = new DespeckleFilter();
@@ -529,7 +531,7 @@ public class ParallelSolrIndexer implements Runnable {
                     }
 //                    if (!individualFiles) {
 //                        synchronized (dos) {
-//                            dos.flush();
+//                            dos.write(buffer.toString().getBytes());
 //                        }
 //                    }
                 } catch (Exception e) {

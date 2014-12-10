@@ -22,7 +22,7 @@ h1 {
 	padding: 10px;
 }
 .lireimg {
-	max-height: 160px;
+	max-height: 140px;
 	margin-top: 15px;
 	margin-right: 3px;
 	margin-bottom: 3px;
@@ -38,6 +38,15 @@ h1 {
 	position:relative;
 	margin: 0px;
 	height: 220px;
+	width: 196px;
+	margin-bottom: 8px;
+	// border: 1px solid #000;
+}
+.imgContLarge {
+	float: left;
+	position:relative;
+	margin: 0px;
+	height: 280px;
 	width: 196px;
 	margin-bottom: 8px;
 	// border: 1px solid #000;

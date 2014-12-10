@@ -4,11 +4,13 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>LIRE - Lucene Image Retrieval</title>
     <link href="style.css" rel="stylesheet" type="text/css"/>
-	<script src="js/jquery-l.js"></script>
-
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
+	<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
 	<script>
 		function reWriteImageUrl(imgUrlOriginal) {
-			imgUrl = "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/images01/" + imgUrlOriginal;
+			
+			imgUrl = "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/" + imgUrlOriginal;
 			// imgUrl = imgUrlOriginal.replace("D:\\DataSets\\MirFlickr\\", "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/images01/");
 			// imgUrl = imgUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
 			// imgUrl = imgUrl.replace(".png", ".jpg");
@@ -33,10 +35,44 @@
 <body>
 <div class="main">
     <div style="width:100%; text-align:right"><img src="img/logo.png"/></div>
-    <h1>LIRE Web Demo</h1>
+	
+	<div class="ui-corner-all custom-corners">
+		<div class="ui-bar ui-bar-a">
+			<h1>LIRE Web Demo</h1>
+		</div>
+		<div class="ui-body ui-body-a">
+			<p>This page is a simple demonstrator for the LIRE image search library. It uses a Solr back-end and has roughly 25,000 files indexed (the MIRFLICKR 08 data set). The images below show possible query images. Use the links below the images to trigger a new content based search request.</p>
+		</div>
+	</div>
 
-    <p>This page is a simple demonstrator for the LIRE image search library. It uses a Solr back-end and has roughly 25,000 files indexed (the MIRFLICKR 08 data set). The images below show possible query images. Use the links below the images to trigger a new content based search request.</p>
-	<p>Search by tag: <input type="text" id="tagsearch" value="tags:*"/> - sort by <input type="text" id="sorthist" readonly/> <a href="javascript:$('#sorthist').val('')"><img src="img/del.gif"></a></p>
+
+    
+	
+	<div class="ui-corner-all custom-corners"  data-role="collapsible">
+		<h3>Search by tags</h3>
+			<div class="ui-field-contain">
+				<label for="tagsearch">Search by tag:</label><input type="text" data-mini="true" id="tagsearch" name="tagsearch" placeholder="tags:*"/>
+			</div>
+			<div class="ui-field-contain">
+				<label for="sorthist">Order by:</label><input type="text" data-mini="true" id="sorthist" name="sorthist" data-clear-btn="true"/>
+			</div>
+			<div class="ui-field-contain">
+				<fieldset data-role="controlgroup" class="ui-controlgroup ui-controlgroup-vertical ui-corner-all">
+					<div role="heading" class="ui-controlgroup-label"><legend>Select method for CBIR combination with tag search:</legend></div>
+					<div class="ui-controlgroup-controls ">
+						<div class="ui-radio"><label for="radio-v-1a" class="ui-btn ui-corner-all ui-btn-inherit ui-btn-icon-left ui-first-child ui-radio-on">boost score</label><input data-mini="true" type="radio" name="radio-v-1" id="radio-v-1a" checked="" data-cacheval="false" value="boost"></div>
+						
+						<div class="ui-radio"><label for="radio-v-1b" class="ui-btn ui-corner-all ui-btn-inherit ui-btn-icon-left ui-radio-off">sort results</label><input data-mini="true" type="radio" name="radio-v-1" id="radio-v-1b" data-cacheval="false" value="sort"></div>
+						
+						<div class="ui-radio"><label for="radio-v-1c" class="ui-btn ui-corner-all ui-btn-inherit ui-btn-icon-left ui-last-child ui-radio-off">filter query by range</label><input data-mini="true" type="radio" name="radio-v-1" id="radio-v-1c" data-cacheval="true" value="filter"></div>
+					</div>
+				</fieldset>
+			</div>
+	</div>	
+	
+
+	
+
 	<script>
   // alert(encodeURIComponent('+'));
 	function tagSearchDo() {
@@ -45,8 +81,20 @@
 		$('.imgCont').remove();
 		$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 		queryString =  "lire/select?q="+$('#tagsearch').val()+"&wt=json&rows=60";
-		if ($('#sorthist').val()) 
-			queryString = queryString + "&sort=lirefunc("+$('#sorthist').val()+")+asc&randomParameter="+Math.floor(Math.random()*50000);
+		console.log($('input[name="radio-v-1"]:checked').val());
+		if ($('#sorthist').val()) {
+			if ($('input[name="radio-v-1"]:checked').val()=="boost") {
+				queryString = queryString + "&defType=edismax&boost=div(recip(lirefunc("+$('#sorthist').val()+"),1,100,100),query($q))&randomParameter="+ Math.floor(Math.random()*50000); // boost
+				console.log("Using boost");
+			} else if ($('input[name="radio-v-1"]:checked').val()=="sort") {
+				queryString = queryString + "&sort=lirefunc("+$('#sorthist').val()+")+asc&randomParameter="+Math.floor(Math.random()*50000); // sort
+				console.log("Using sort");
+			} else {
+				queryString = queryString + "&fq={!frange l=0 u=40 cache=false cost=100}lirefunc("+$('#sorthist').val()+")"; // range
+				console.log("Using range");
+			}
+			
+		}
 		// http://localhost:9000/solr/lire/select?q=tags%3Aaustria%0A&wt=json&indent=true
 		console.log(queryString);
 		$.getJSON(queryString, function( myResult ) {
@@ -61,12 +109,12 @@
 				imageUrl = reWriteImageUrl(myID);
 				tags = myResult.response.docs[i].tags[0].toString();
 				if (tags.length > 60) tags = tags.substring(0, 57) + "...";
-				recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" title=\""+myResult.response.docs[i].tags[0].toString()+"\"/>"
+				recent = $( "<div class=\"imgContLarge\"><img class=\"lireimg\" src=\""+imageUrl+"\" title=\""+myResult.response.docs[i].tags[0].toString()+"\"/>"
 					+ "<div align=\"center\" class=\"searchLink\">"
 					// + "d="+myResult.docs[i].d+"<br/>"
 					// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
 					+ "CBIR: " + getCBIRLinks(myID)
-					+ " Sort: "
+					+ "<br/>Sort: "
 					+ "<a href=\"javascript:extract('cl','"+imageUrl+"');\">CL</a>, "
 					+ "<a href=\"javascript:extract('ce','"+imageUrl+"');\">CEDD</a>, "
 					+ "<a href=\"javascript:extract('eh','"+imageUrl+"');\">EH</a> <br/>"
