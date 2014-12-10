@@ -75,6 +75,10 @@
 			<label for="slider-1">Accuracy:</label>
 			<input type="range" name="slider-1" id="slider-1" value="0.35" min="0.05" max="1.0" step="0.05">
 		</div>
+		<div class="ui-field-contain">
+			<label for="slider-can">Number of candidates:</label>
+			<input type="range" name="slider-can" id="slider-can" value="10000" min="10" max="100000" step="100">
+		</div>
 	</div>	
 	
 
@@ -199,6 +203,7 @@ function search(idString, field) {
 	// get all the new data from the server ...
 	serverUrl = "lire/lireq?rows=30&id="+idString+"&field="+field;
 	if ($("#slider-1").val()) serverUrl += "&accuracy="+$("#slider-1").val();
+	if ($("#slider-can").val()) serverUrl += "&candidates="+$("#slider-can").val();
 	console.log(serverUrl);
 	$.getJSON( serverUrl, function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms (query " + myResult.RawDocsSearchTime + " ms, rank " + myResult.ReRankSearchTime  + " ms)");
@@ -235,6 +240,9 @@ function searchUrl(field) {
 
 	// get all the new data from the server ...
 	serverUrl = "lire/lireq?rows=30&url="+$("#urlq").val()+"&field="+field;
+	if ($("#slider-1").val()) serverUrl += "&accuracy="+$("#slider-1").val();
+	if ($("#slider-can").val()) serverUrl += "&candidates="+$("#slider-can").val();
+
 	console.log(serverUrl);
 	$.getJSON( serverUrl, function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms (query " + myResult.RawDocsSearchTime + " ms, rank " + myResult.ReRankSearchTime  + " ms)");

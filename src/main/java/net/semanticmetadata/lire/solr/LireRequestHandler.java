@@ -81,7 +81,8 @@ public class LireRequestHandler extends RequestHandlerBase {
      * number of candidate results retrieved from the index. The higher this number, the slower,
      * the but more accurate the retrieval will be. 10k is a good value for starters.
      */
-    private int candidateResultNumber = 10000;
+    private int numberOfCandidateResults = 10000;
+    private static final int DEFAULT_NUMBER_OF_CANDIDATES = 10000;
 
     /**
      * The number of query terms that go along with the TermsFilter search. We need some to get a
@@ -154,6 +155,7 @@ public class LireRequestHandler extends RequestHandlerBase {
             rsp.add("QueryField", paramField);
             rsp.add("QueryFeature", queryFeature.getClass().getName());
             numberOfQueryTerms = req.getParams().getDouble("accuracy", DEFAULT_NUMBER_OF_QUERY_TERMS);
+            numberOfCandidateResults = req.getParams().getInt("candidates", DEFAULT_NUMBER_OF_CANDIDATES);
             if (hits.scoreDocs.length > 0) {
                 // Using DocValues to get the actual data from the index.
                 BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), FeatureRegistry.getFeatureFieldName(paramField)); // ***  #
@@ -225,6 +227,7 @@ public class LireRequestHandler extends RequestHandlerBase {
         if (params.get("rows") != null)
             paramRows = params.getInt("rows");
         numberOfQueryTerms = req.getParams().getDouble("accuracy", DEFAULT_NUMBER_OF_QUERY_TERMS);
+        numberOfCandidateResults = req.getParams().getInt("candidates", DEFAULT_NUMBER_OF_CANDIDATES);
         LireFeature feat = null;
         List<Term> termFilter = null;
         int[] hashes = null;
@@ -310,6 +313,7 @@ public class LireRequestHandler extends RequestHandlerBase {
         if (params.getInt("rows") != null)
             paramRows = params.getInt("rows");
         numberOfQueryTerms = req.getParams().getDouble("accuracy", DEFAULT_NUMBER_OF_QUERY_TERMS);
+        numberOfCandidateResults = req.getParams().getInt("candidates", DEFAULT_NUMBER_OF_CANDIDATES);
         // create boolean query:
 //        System.out.println("** Creating query.");
         LinkedList<Term> termFilter = new LinkedList<Term>();
@@ -354,9 +358,9 @@ public class LireRequestHandler extends RequestHandlerBase {
         LireFeature tmpFeature = queryFeature.getClass().newInstance();
         // Taking the time of search for statistical purposes.
         time = System.currentTimeMillis();
-        TopDocs docs = searcher.search(query, candidateResultNumber);   // with query only.
-//        TopDocs docs = searcher.search(query, new TermsFilter(terms), candidateResultNumber);   // with TermsFilter and boosting by simple query
-//        TopDocs docs = searcher.search(new ConstantScoreQuery(new TermsFilter(terms)), candidateResultNumber); // just with TermsFilter
+        TopDocs docs = searcher.search(query, numberOfCandidateResults);   // with query only.
+//        TopDocs docs = searcher.search(query, new TermsFilter(terms), numberOfCandidateResults);   // with TermsFilter and boosting by simple query
+//        TopDocs docs = searcher.search(new ConstantScoreQuery(new TermsFilter(terms)), numberOfCandidateResults); // just with TermsFilter
         time = System.currentTimeMillis() - time;
         rsp.add("RawDocsCount", docs.scoreDocs.length + "");
         rsp.add("RawDocsSearchTime", time + "");
