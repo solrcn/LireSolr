@@ -41,7 +41,7 @@
 			<h1>LIRE Web Demo</h1>
 		</div>
 		<div class="ui-body ui-body-a">
-			<p>This page is a simple demonstrator for the LIRE image search library. It uses a Solr back-end and has roughly 25,000 files indexed (the MIRFLICKR 08 data set). The images below show possible query images. Use the links below the images to trigger a new content based search request.</p>
+			<p>This page is a simple demonstrator for the LIRE image search library. It uses a Solr back-end and has 1M files indexed (the MIRFLICKR data set). The images below show possible query images. Use the links below the images to trigger a new content based search request.</p>
 		</div>
 	</div>
 
@@ -78,7 +78,8 @@
 	function tagSearchDo() {
 		console.log($('#tagsearch').val());
 		// clear the old data
-		$('.imgCont').remove();
+		$(".imgCont").remove();
+		$(".imgContLarge").remove();
 		$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 		queryString =  "lire/select?q="+$('#tagsearch').val()+"&wt=json&rows=60";
 		console.log($('input[name="radio-v-1"]:checked').val());
@@ -179,7 +180,7 @@ function extract(field, url) {
 function search(idString, field) {
 	// console.log(idString);
 	// clear the old data
-	$('.imgCont').remove();
+	$(".imgCont").remove();
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
     $("#results").html("Results for query id \""+idString+"\"");
 
@@ -214,7 +215,7 @@ function searchUrl(field) {
 	console.log($("#urlq").val());
 	console.log(field);
 	// clear the old data
-	$('.imgCont').remove();
+	$(".imgCont").remove();
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 	$("#results").html("Results for query \""+$("#urlq").val().substring(0,12)+"...\"");
 
@@ -248,7 +249,12 @@ function searchUrl(field) {
 
 <p class="otherLink"><i id="perf">Index search time</i></p>
 
-<p class="otherLink">Search by image URL: <input type="text" id="urlq" style="border: 1px solid #DDDDDD; width: 220px"/>  - <a href="javascript:searchUrl('cl_ha');">CL</a>, <a href="javascript:searchUrl('ph_ha');">PH</a>, <a href="javascript:searchUrl('ph_ha');">EH</a>, <a href="javascript:searchUrl('ph_ha');">JC</a></p>
+<div class="ui-field-contain">
+	<label for="urlq">Search by image URL:</label><input type="text" data-mini="true" id="urlq" name="urlq" placeholder="http://..."/>
+	<a href="javascript:searchUrl('cl_ha');">CL</a>
+	<a href="javascript:searchUrl('ce_ha');">CEDD</a>
+	<a href="javascript:searchUrl('eh_ha');">EH</a>
+</div>
 </div>
 </body>
 </html>
