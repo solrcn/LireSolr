@@ -69,6 +69,13 @@
 				</fieldset>
 			</div>
 	</div>	
+	<div class="ui-corner-all custom-corners"  data-role="collapsible">
+		<h3>Search parameters</h3>
+		<div class="ui-field-contain">
+			<label for="slider-1">Accuracy:</label>
+			<input type="range" name="slider-1" id="slider-1" value="0.35" min="0.05" max="1.0" step="0.05">
+		</div>
+	</div>	
 	
 
 	
@@ -138,6 +145,8 @@
 	
 $( document ).ready(function() {
 	// get JSON-formatted data from the server
+	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
+
 	$.getJSON( "lire/lireq", function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms");
 		console.log(myResult);
@@ -181,11 +190,15 @@ function search(idString, field) {
 	// console.log(idString);
 	// clear the old data
 	$(".imgCont").remove();
+	$(".imgContLarge").remove();
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
     $("#results").html("Results for query id \""+idString+"\"");
-
+	
+	// console.log($("#slider-1").val());
+	
 	// get all the new data from the server ...
 	serverUrl = "lire/lireq?rows=30&id="+idString+"&field="+field;
+	if ($("#slider-1").val()) serverUrl += "&accuracy="+$("#slider-1").val();
 	console.log(serverUrl);
 	$.getJSON( serverUrl, function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms (query " + myResult.RawDocsSearchTime + " ms, rank " + myResult.ReRankSearchTime  + " ms)");
@@ -216,6 +229,7 @@ function searchUrl(field) {
 	console.log(field);
 	// clear the old data
 	$(".imgCont").remove();
+	$(".imgContLarge").remove();
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 	$("#results").html("Results for query \""+$("#urlq").val().substring(0,12)+"...\"");
 
@@ -243,11 +257,12 @@ function searchUrl(field) {
 };    
 
 	</script>
+	<p class="otherLink"><i id="perf">Index search time</i></p>
     <h1 id="results">Results</h1>
 
     <br style="clear:both;"/>
 
-<p class="otherLink"><i id="perf">Index search time</i></p>
+
 
 <div class="ui-field-contain">
 	<label for="urlq">Search by image URL:</label><input type="text" data-mini="true" id="urlq" name="urlq" placeholder="http://..."/>

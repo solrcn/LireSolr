@@ -40,10 +40,7 @@
 package net.semanticmetadata.lire.solr;
 
 import com.jhlabs.image.DespeckleFilter;
-import net.semanticmetadata.lire.imageanalysis.CEDD;
-import net.semanticmetadata.lire.imageanalysis.ColorLayout;
-import net.semanticmetadata.lire.imageanalysis.EdgeHistogram;
-import net.semanticmetadata.lire.imageanalysis.LireFeature;
+import net.semanticmetadata.lire.imageanalysis.*;
 import net.semanticmetadata.lire.indexing.hashing.BitSampling;
 import net.semanticmetadata.lire.indexing.parallel.WorkItem;
 import net.semanticmetadata.lire.solr.indexing.ImageDataProcessor;
@@ -314,14 +311,14 @@ public class ParallelSolrIndexer implements Runnable {
 
     private void addFeatures(List features) {
         // original features
-//        features.add(new PHOG());
+        features.add(new PHOG());
         features.add(new ColorLayout());
         features.add(new EdgeHistogram());
-//        features.add(new JCD());
+        features.add(new JCD());
 
         // new features
         features.add(new CEDD());
-//        features.add(new ScalableColor());
+        features.add(new ScalableColor());
     }
 
     public boolean isPreprocessing() {
