@@ -53,7 +53,7 @@ import java.io.*;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Stack;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * This indexing application allows for parallel extraction of global features from multiple image files for
@@ -83,16 +83,17 @@ import java.util.Stack;
  * @author Mathias Lux, mathias@juggle.at on  13.08.2013
  */
 public class ParallelSolrIndexer implements Runnable {
-    private final int maxCacheSize = 500;
+    private final int maxCacheSize = 100;
     //    private static HashMap<Class, String> classToPrefix = new HashMap<Class, String>(5);
     private boolean force = false;
     private static boolean individualFiles = false;
     private static int numberOfThreads = 4;
-    Stack<WorkItem> images = new Stack<WorkItem>();
+    LinkedBlockingQueue<WorkItem> images = new LinkedBlockingQueue<WorkItem>(maxCacheSize);
     boolean ended = false;
     int overallCount = 0;
     OutputStream dos = null;
     LinkedList<LireFeature> listOfFeatures;
+
     File fileList = null;
     File outFile = null;
     private int monitoringInterval = 10;
@@ -276,7 +277,7 @@ public class ParallelSolrIndexer implements Runnable {
         try {
             if (!individualFiles) {
                 // create a BufferedOutputStream with a large buffer
-                dos = new BufferedOutputStream(new FileOutputStream(outFile), 1024*1024*8);
+                dos = new BufferedOutputStream(new FileOutputStream(outFile), 1024 * 1024 * 8);
                 dos.write("<add>\n".getBytes());
             }
             Thread p = new Thread(new Producer(), "Producer");
@@ -284,7 +285,7 @@ public class ParallelSolrIndexer implements Runnable {
             LinkedList<Thread> threads = new LinkedList<Thread>();
             long l = System.currentTimeMillis();
             for (int i = 0; i < numberOfThreads; i++) {
-                Thread c = new Thread(new Consumer(), "Consumer-"+i);
+                Thread c = new Thread(new Consumer(), "Consumer-" + i);
                 c.start();
                 threads.add(c);
             }
@@ -360,7 +361,6 @@ public class ParallelSolrIndexer implements Runnable {
 
     class Producer implements Runnable {
         public void run() {
-            int tmpSize = 0;
             try {
                 BufferedReader br = new BufferedReader(new FileReader(fileList));
                 String file = null;
@@ -373,22 +373,16 @@ public class ParallelSolrIndexer implements Runnable {
                         FileInputStream fis = new FileInputStream(next);
                         fis.read(buffer);
                         String path = next.getCanonicalPath();
-                        synchronized (images) {
-                            images.add(new WorkItem(path, buffer));
-                            tmpSize = images.size();
-                            // if the cache is too crowded, then wait.
-                            // if the cache is too small, don't notify.
-                            if (tmpSize > maxCacheSize) {
-                                images.wait(500);
-                            }
-                            images.notify();
-                        }
+                        images.put(new WorkItem(path, buffer));
                     } catch (Exception e) {
                         System.err.println("Could not read image " + file + ": " + e.getMessage());
                     }
+                }
+                for (int i = 0; i < numberOfThreads*2; i++) {
+                    String tmpString = null;
+                    BufferedImage tmpImg = null;
                     try {
-                        if (tmpSize > maxCacheSize) Thread.sleep(1000);
-//                        else Thread.sleep(2);
+                        images.put(new WorkItem(tmpString, tmpImg));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -397,10 +391,7 @@ public class ParallelSolrIndexer implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            synchronized (images) {
-                ended = true;
-                images.notifyAll();
-            }
+            ended = true;
         }
     }
 
@@ -417,27 +408,22 @@ public class ParallelSolrIndexer implements Runnable {
 
         public void run() {
             while (!locallyEnded) {
-                synchronized (images) {
+                try {
                     // we wait for the stack to be either filled or empty & not being filled any more.
-                    while (images.empty() && !ended) {
-                        try {
-                            images.wait(200);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
                     // make sure the thread locally knows that the end has come (outer loop)
-                    if (images.empty() && ended)
+                    if (images.peek().getBuffer() == null)
                         locallyEnded = true;
                     // well the last thing we want is an exception in the very last round.
-                    if (!images.empty() && !locallyEnded) {
-                        tmp = images.pop();
-                        count++;
-                        overallCount++;
-                        images.notifyAll();
+                    if (!locallyEnded) {
+                        tmp = images.take();
+                        if (tmp.getBuffer() == null)
+                            locallyEnded = true;
+                        else {
+                            count++;
+                            overallCount++;
+                        }
                     }
-                }
-                try {
+
                     if (!locallyEnded) {
                         sb.delete(0, sb.length());
                         ByteArrayInputStream b = new ByteArrayInputStream(tmp.getBuffer());
