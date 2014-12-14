@@ -276,7 +276,13 @@ public class LireRequestHandler extends RequestHandlerBase {
             }
             feat.extract(img);
             rsp.add("histogram", Base64.encodeBase64String(feat.getByteArrayRepresentation()));
-//            int[] hashes = BitSampling.generateHashes(feat.getDoubleHistogram());
+            int[] hashes = BitSampling.generateHashes(feat.getDoubleHistogram());
+            ArrayList<String> hashStrings = new ArrayList<String>(hashes.length);
+            for (int i = 0; i < hashes.length; i++) {
+                hashStrings.add(Integer.toHexString(hashes[i]));
+            }
+            Collections.shuffle(hashStrings);
+            rsp.add("hashes", hashStrings);
 //            just use 50% of the hashes for search ...
 //            query = createTermFilter(hashes, paramField, 0.5d);
         } catch (Exception e) {

@@ -411,8 +411,8 @@ public class ParallelSolrIndexer implements Runnable {
                 try {
                     // we wait for the stack to be either filled or empty & not being filled any more.
                     // make sure the thread locally knows that the end has come (outer loop)
-                    if (images.peek().getBuffer() == null)
-                        locallyEnded = true;
+//                    if (images.peek().getBuffer() == null)
+//                        locallyEnded = true;
                     // well the last thing we want is an exception in the very last round.
                     if (!locallyEnded) {
                         tmp = images.take();

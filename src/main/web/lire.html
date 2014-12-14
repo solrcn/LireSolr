@@ -20,11 +20,21 @@
 		function getCBIRLinks(myID) {
 			result = "";
 			// result += "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, ";
+			result += "lireq: ";
 			result += "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, ";
-			// result += "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, ";
-			result += "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, ";
 			result += "<a href=\"javascript:search('"+myID+"', 'ce_ha');\">CEDD</a>, ";
-			//result += "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a> ";
+			result += "<a href=\"javascript:search('"+myID+"', 'eh_ha');\">EH</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'jc_ha');\">JCD</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'ph_ha');\">PH</a>, ";
+			result += "<a href=\"javascript:search('"+myID+"', 'sc_ha');\">SC</a> ";
+			result += "<br>search: "
+			result += "<a href=\"javascript:hashSearch('cl','"+imageUrl+"');\">CL</a>, "
+			result += "<a href=\"javascript:hashSearch('ce','"+imageUrl+"');\">CEDD</a>, "
+			result += "<a href=\"javascript:hashSearch('eh','"+imageUrl+"');\">EH</a>, "
+			result += "<a href=\"javascript:hashSearch('jc','"+imageUrl+"');\">JCD</a>, "
+			result += "<a href=\"javascript:hashSearch('ph','"+imageUrl+"');\">PH</a>, "
+			result += "<a href=\"javascript:hashSearch('sc','"+imageUrl+"');\">SC</a>"
+
 			return result;// + "</br>";
 		}
 		
@@ -49,13 +59,16 @@
     
 	
 	<div class="ui-corner-all custom-corners"  data-role="collapsible">
-		<h3>Search by tags</h3>
+		<h3>Search by tags (search handler)</h3>
 			<div class="ui-field-contain">
 				<label for="tagsearch">Search by tag:</label><input type="text" data-mini="true" id="tagsearch" name="tagsearch" placeholder="tags:*"/>
 			</div>
 			<div class="ui-field-contain">
 				<label for="sorthist">Order by:</label><input type="text" data-mini="true" id="sorthist" name="sorthist" data-clear-btn="true"/>
 			</div>
+	</div>	
+	<div class="ui-corner-all custom-corners"  data-role="collapsible">
+		<h3>Query order method (search handler)</h3>
 			<div class="ui-field-contain">
 				<fieldset data-role="controlgroup" class="ui-controlgroup ui-controlgroup-vertical ui-corner-all">
 					<div role="heading" class="ui-controlgroup-label"><legend>Select method for CBIR combination with tag search:</legend></div>
@@ -70,7 +83,7 @@
 			</div>
 	</div>	
 	<div class="ui-corner-all custom-corners"  data-role="collapsible">
-		<h3>Search parameters</h3>
+		<h3>Search parameters (lireq handler)</h3>
 		<div class="ui-field-contain">
 			<label for="slider-1">Accuracy:</label>
 			<input type="range" name="slider-1" id="slider-1" value="0.35" min="0.05" max="1.0" step="0.05">
@@ -126,12 +139,13 @@
 					// + "d="+myResult.docs[i].d+"<br/>"
 					// + "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, "
 					+ "CBIR: " + getCBIRLinks(myID)
-					+ "<br/>Sort: "
+					+ "<br/>sort: "
 					+ "<a href=\"javascript:extract('cl','"+imageUrl+"');\">CL</a>, "
 					+ "<a href=\"javascript:extract('ce','"+imageUrl+"');\">CEDD</a>, "
-					+ "<a href=\"javascript:extract('eh','"+imageUrl+"');\">EH</a> <br/>"
-					// + "<a href=\"javascript:extract('jc','"+imageUrl+"');\">JCD</a> "
-					+ tags
+					+ "<a href=\"javascript:extract('eh','"+imageUrl+"');\">EH</a>, "
+					+ "<a href=\"javascript:extract('jc','"+imageUrl+"');\">JCD</a>, "
+					+ "<a href=\"javascript:extract('ph','"+imageUrl+"');\">PH</a>, "
+					+ "<a href=\"javascript:extract('sc','"+imageUrl+"');\">SC</a><br/>"
 					+ "</div></div>" );
 				recent.insertAfter(last);
 				last=recent;
@@ -187,7 +201,80 @@ function extract(field, url) {
 		}
 	
 	});
+}
 
+function getRange(field) {
+	var result = "40";
+	if (field=="cl") result = "20";
+	else if (field=="ce") result = "10";
+	else if (field=="jc") result = "10";
+	else if (field=="eh") result = "100";
+	else if (field=="ph") result = "2000";
+	else if (field=="sc") result = "150";
+	return result;
+}
+
+function hashSearch(field, url) {
+	serverUrl = "lire/lireq?extract="+url+"&field="+field+"_ha";
+	console.log("Hash based search" + serverUrl);
+	$(".imgCont").remove();
+	$(".imgContLarge").remove();
+	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");	
+
+	$.getJSON( serverUrl, function( myResult ) {
+		console.log(myResult);
+		if (!myResult.Error) {
+			var hashString = "";
+			var numHashes = 35;
+			if ($("#slider-1").val()) {
+				numHashes = Math.floor(myResult.hashes.length * $("#slider-1").val());
+				numHashes = Math.min(myResult.hashes.length, numHashes);
+			}
+			for (var i =0; i< Math.max(5, numHashes); i++) {
+				hashString += myResult.hashes[i] + " ";
+			}
+			queryString =  "lire/select?q=id:*&fq="+field+"_ha:("+hashString.trim()+")&wt=json&rows=60";
+			if ($('input[name="radio-v-1"]:checked').val()=="boost") {
+				queryString = queryString + "&defType=edismax&boost=div(recip(lirefunc("+encodeURIComponent(field + ",\"" + myResult.histogram+"\"")+"),1,100,100),query($q))"; // boost
+				console.log("Using boost");
+			} else if ($('input[name="radio-v-1"]:checked').val()=="sort") {
+				queryString = queryString + "&sort=lirefunc("+encodeURIComponent(field + ",\"" + myResult.histogram+"\"")+")+asc"; // sort
+				console.log("Using sort");
+			} else {
+				queryString = queryString + "&fq={!frange l=0 u="+getRange(field)+" cache=false cost=100}lirefunc("+encodeURIComponent(field + ",\"" + myResult.histogram+"\"")+")"; // range
+				console.log("Using range");
+			}
+
+			console.log(queryString);
+			
+			// now get the results:
+			$.getJSON( queryString, function( myResult2 ) {
+				$("#perf").html("Search took " + myResult2.responseHeader.QTime + " ms, " + myResult2.response.numFound + " documents found");
+				console.log(myResult2);
+				
+				if (!myResult2.Error) {
+					var last = $("#results");
+					for (var i =0; i< myResult2.response.docs.length; i++) {
+						myID = myResult2.response.docs[i].id.toString();
+						imageUrl = reWriteImageUrl(myID);
+						recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" />"
+							+ "<div class=\"searchLink\">"
+							// + "d="+myResult2.response.docs[i].d+"<br/>"
+							+ getCBIRLinks(myID)
+							+ "</div></div>" );
+						recent.insertAfter(last);
+						last=recent;
+					}
+				}
+				else {
+					$("#results").html("Error: \""+myResult2.Error+"\"");
+				}
+			});
+		}
+		else {
+			$("#results").html("Error: \""+myResult.Error+"\"");
+		}
+	});
 }
 
 function search(idString, field) {
