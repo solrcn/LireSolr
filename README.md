@@ -122,7 +122,7 @@ You'll also need the respective fields in the schema.xml file:
        <field name="jc_hi" type="binaryDV"  indexed="false" stored="true" required="false"/>
        <!-- OpponentHistogram -->
        <!--field name="oh_ha" type="text_ws" indexed="true" stored="false" required="false"/-->
-       <!--field name="oh_hi" type="binary"  indexed="false" stored="true" required="false"/-->
+       <!--field name="oh_hi" type="binaryDV"  indexed="false" stored="true" required="false"/-->
        <!-- Needed for SOLR -->
        <field name="_version_" type="long" indexed="true" stored="true"/>
     </fields>
