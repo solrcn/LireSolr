@@ -122,7 +122,7 @@ You'll also need the respective fields in the schema.xml file:
        <field name="jc_hi" type="binaryDV"  indexed="false" stored="true" required="false"/>
        <!-- OpponentHistogram -->
        <!--field name="oh_ha" type="text_ws" indexed="true" stored="false" required="false"/-->
-       <!--field name="oh_hi" type="binary"  indexed="false" stored="true" required="false"/-->
+       <!--field name="oh_hi" type="binaryDV"  indexed="false" stored="true" required="false"/-->
        <!-- Needed for SOLR -->
        <field name="_version_" type="long" indexed="true" stored="true"/>
     </fields>
@@ -178,7 +178,8 @@ This help text is shown if you start the ParallelSolrIndexer with the '-h' optio
 
 $> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>]
 
-Note: if you don't specify an outfile just ".xml" is appended to the infile for output.
+Note: if you don't specify an outfile just ".xml" is appended to the input image for output. So there will be one XML
+file per image. Specifying an outfile will collect the information of all images in one single file.
 
 -n ... number of threads should be something your computer can cope with. default is 4.
 -f ... forces overwrite of outfile
@@ -186,6 +187,30 @@ Note: if you don't specify an outfile just ".xml" is appended to the infile for 
 -m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.
 -r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor
        that provides additional fields.
+
+INFILE
+------
+The infile gives one image per line with the full path. You can create an infile easily on Windows with running in the
+parent directory of the images
+
+$> dir /s /b *.jpg > infile.txt
+
+On linux just use find, grep and whatever you find appropriate. With find it'd look like this assuming that you run it
+from the root directory:
+
+$> find /[path-to-image-base-dir]/ -name *.jpg
+
+OUTFILE
+-------
+The outfile has to be send to the Solr server. Assuming the Solr server is local you may use
+
+curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<delete><query>*:*</query></delete>"
+curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary @outfile.xml
+curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<commit/>"
+
+You need to commit you changes! If your outfile exceeds 500MB, curl
+might complain. Then use split to cut it into pieces and repair the
+root tags (<add> and </add>)
 
 LireEntityProcessor
 ===================
@@ -220,4 +245,4 @@ solrconfig.xml, and then give the configuration for the EntityProcessor like thi
         </document>
     </dataConfig>
 
-*Mathias Lux, 2014-12-10*
+*Mathias Lux, 2014-12-18*
