@@ -193,20 +193,20 @@ INFILE
 The infile gives one image per line with the full path. You can create an infile easily on Windows with running in the
 parent directory of the images
 
-$> dir /s /b *.jpg > infile.txt
+    $> dir /s /b *.jpg > infile.txt
 
 On linux just use find, grep and whatever you find appropriate. With find it'd look like this assuming that you run it
 from the root directory:
 
-$> find /[path-to-image-base-dir]/ -name *.jpg
+    $> find /[path-to-image-base-dir]/ -name *.jpg
 
 OUTFILE
 -------
 The outfile has to be send to the Solr server. Assuming the Solr server is local you may use
 
-curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<delete><query>*:*</query></delete>"
-curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary @outfile.xml
-curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<commit/>"
+    curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<delete><query>*:*</query></delete>"
+    curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary @outfile.xml
+    curl.exe http://localhost:8983/solr/lire/update -H "Content-Type: text/xml" --data-binary "<commit/>"
 
 You need to commit you changes! If your outfile exceeds 500MB, curl
 might complain. Then use split to cut it into pieces and repair the
