@@ -6,9 +6,9 @@
 	<style type='text/css'>
 		<!--
 			html { background-color: #FFFF; }
-			@media only screen and (min-width: 800px){
+			@media only screen and (min-width: 900px){
 				.ui-page {
-					width: 800px !important;
+					width: 900px !important;
 					margin: 0 auto !important;
 					position: relative !important;
 				}
@@ -19,18 +19,15 @@
 	<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
 	<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
 	<script>
+		serverUrlPrefix = "lire/";
+		
 		function reWriteImageUrl(imgUrlOriginal) {
-			
 			imgUrl = "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/" + imgUrlOriginal;
-			// imgUrl = imgUrlOriginal.replace("D:\\DataSets\\MirFlickr\\", "http://demo-itec.uni-klu.ac.at/liredemo/mirflickr/images01/");
-			// imgUrl = imgUrl.replace("US/jpg_us_trim", "http://demo-itec.uni-klu.ac.at/liredemo/wipo_us_jpg");
-			// imgUrl = imgUrl.replace(".png", ".jpg");
 			return imgUrl;
 		}
 		
 		function getCBIRLinks(myID) {
 			result = "";
-			// result += "<a href=\"javascript:search('"+myID+"', 'oh_ha');\">OH</a>, ";
 			result += "<div style=\"font-size:8pt\"><p>lireq: ";
 			result += "<a href=\"javascript:search('"+myID+"', 'cl_ha');\">CL</a>, ";
 			result += "<a href=\"javascript:search('"+myID+"', 'ce_ha');\">CEDD</a>, ";
@@ -45,8 +42,36 @@
 			result += "<a href=\"javascript:hashSearch('jc','"+imageUrl+"');\">JCD</a>, "
 			result += "<a href=\"javascript:hashSearch('ph','"+imageUrl+"');\">PH</a>, "
 			result += "<a href=\"javascript:hashSearch('sc','"+imageUrl+"');\">SC</a></p></div>"
-
-			return result;// + "</br>";
+			return result;
+		}
+		
+		function printResults(docs) {
+			var last = $("#results");
+			wrapper = $("<div class=\"ui-grid-c\"></div>");
+			wrapper.insertAfter(last);
+			last = wrapper;
+			for (var i =0; i< docs.length; i++) {
+				myID = docs[i].id.toString();
+				imageUrl = reWriteImageUrl(myID);
+				var col = "ui-block-a";
+				if (i%4==1) {
+					col = "ui-block-b";
+				} else if (i%4==2) {
+					col = "ui-block-c";
+				} else if (i%4==3) {
+					col = "ui-block-d";
+				}
+				recent = $( "<div class=\""+col+"\"><div style=\"height:170px\"><img style=\"max-width:160px;max-height:160px;display: block;margin-left: auto;margin-right: auto;\" src=\""+imageUrl+"\" /></div>"
+					+ getCBIRLinks(myID)
+					+ "</div>" );
+				last.append(recent);
+				//last=recent;
+			}
+		}
+		
+		function clearData() {
+			$(".ui-grid-c").remove();
+			$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 		}
 		
 	</script>
@@ -107,13 +132,11 @@
 	
 
 	<script>
-  // alert(encodeURIComponent('+'));
 	function tagSearchDo() {
 		console.log($('#tagsearch').val());
 		// clear the old data
-		$(".ui-grid-c").remove();
-		$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
-		queryString =  "lire/select?q="+$('#tagsearch').val()+"&wt=json&rows=60";
+		clearData();
+		queryString =  serverUrlPrefix + "select?q="+$('#tagsearch').val()+"&wt=json&rows=60";
 		console.log($('input[name="radio-v-1"]:checked').val());
 		if ($('#sorthist').val()) {
 			if ($('input[name="radio-v-1"]:checked').val()=="boost") {
@@ -181,39 +204,16 @@ $( document ).ready(function() {
 	// get JSON-formatted data from the server
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
 
-	$.getJSON( "lire/lireq", function( myResult ) {
+	$.getJSON( serverUrlPrefix + "lireq", function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms");
 		console.log(myResult);
-	    
-		var last = $("#results");
-		wrapper = $("<div class=\"ui-grid-c\"></div>");
-		wrapper.insertAfter(last);
-		last = wrapper;
-		for (var i =0; i< myResult.docs.length; i++) {
-			myID = myResult.docs[i].id.toString();
-			imageUrl = reWriteImageUrl(myID);
-			var col = "ui-block-a";
-			if (i%4==1) {
-				col = "ui-block-b";
-			} else if (i%4==2) {
-				col = "ui-block-c";
-			} else if (i%4==3) {
-				col = "ui-block-d";
-			}
-			recent = $( "<div class=\""+col+"\"><div style=\"height:170px\"><img style=\"max-width:160px;max-height:160px;display: block;margin-left: auto;margin-right: auto;\" src=\""+imageUrl+"\" /></div>"
-				+ getCBIRLinks(myID)
-				// + "<a href=\"javascript:extract('http://localhost:9000/solr/images/"+myID+"');\">Extract</a>, "
-				+ "</div>" );
-			last.append(recent);
-			//last=recent;
-		}
-		
+	    printResults(myResult.docs);
 	});
 	
 });
 
 function extract(field, url) {
-	serverUrl = "lire/lireq?extract="+url+"&field="+field+"_ha";
+	serverUrl = serverUrlPrefix + "lireq?extract="+url+"&field="+field+"_ha";
 	console.log(serverUrl);
 	$.getJSON( serverUrl, function( myResult ) {
 		console.log(myResult);
@@ -241,7 +241,7 @@ function getRange(field) {
 }
 
 function hashSearch(field, url) {
-	serverUrl = "lire/lireq?extract="+url+"&field="+field+"_ha";
+	serverUrl = serverUrlPrefix + "lireq?extract="+url+"&field="+field+"_ha";
 	console.log("Hash based search" + serverUrl);
 	$(".ui-grid-c").remove();
 	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");	
@@ -258,7 +258,7 @@ function hashSearch(field, url) {
 			for (var i =0; i< Math.max(5, numHashes); i++) {
 				hashString += myResult.hashes[i] + " ";
 			}
-			queryString =  "lire/select?q=id:*&fq="+field+"_ha:("+hashString.trim()+")&wt=json&rows=60";
+			queryString =  serverUrlPrefix + "select?q=id:*&fq="+field+"_ha:("+hashString.trim()+")&wt=json&rows=60";
 			if ($('input[name="radio-v-1"]:checked').val()=="boost") {
 				queryString = queryString + "&defType=edismax&boost=div(recip(lirefunc("+encodeURIComponent(field + ",\"" + myResult.histogram+"\"")+"),1,100,100),query($q))"; // boost
 				console.log("Using boost");
@@ -278,31 +278,7 @@ function hashSearch(field, url) {
 				console.log(myResult2);
 				
 				if (!myResult2.Error) {
-					var last = $("#results");
-					
-					wrapper = $("<div class=\"ui-grid-c\"></div>");
-					wrapper.insertAfter(last);
-					last = wrapper;
-					for (var i =0; i< myResult2.response.docs.length; i++) {
-						myID = myResult2.response.docs[i].id.toString();
-						imageUrl = reWriteImageUrl(myID);
-						var col = "ui-block-a";
-						if (i%4==1) {
-							col = "ui-block-b";
-						} else if (i%4==2) {
-							col = "ui-block-c";
-						} else if (i%4==3) {
-							col = "ui-block-d";
-						}
-						recent = $( "<div class=\""+col+"\"><div style=\"height:170px\"><img style=\"max-width:160px;max-height:160px;display: block;margin-left: auto;margin-right: auto;\" src=\""+imageUrl+"\" /></div>"
-							+ getCBIRLinks(myID)
-							// + "<a href=\"javascript:extract('http://localhost:9000/solr/images/"+myID+"');\">Extract</a>, "
-							+ "</div>" );
-						last.append(recent);
-						//last=recent;
-					}
-					
-
+					printResults(myResult2.response.docs);
 				}
 				else {
 					$("#results").html("Error: \""+myResult2.Error+"\"");
@@ -325,7 +301,7 @@ function search(idString, field) {
 	// console.log($("#slider-1").val());
 	
 	// get all the new data from the server ...
-	serverUrl = "lire/lireq?rows=30&id="+idString+"&field="+field;
+	serverUrl = serverUrlPrefix + "lireq?rows=30&id="+idString+"&field="+field;
 	if ($("#slider-1").val()) serverUrl += "&accuracy="+$("#slider-1").val();
 	if ($("#slider-can").val()) serverUrl += "&candidates="+$("#slider-can").val();
 	console.log(serverUrl);
@@ -334,28 +310,7 @@ function search(idString, field) {
 		console.log(myResult);
 		
 		if (!myResult.Error) {
-			var last = $("#results");
-			wrapper = $("<div class=\"ui-grid-c\"></div>");
-			wrapper.insertAfter(last);
-			last = wrapper;
-			for (var i =0; i< myResult.docs.length; i++) {
-				myID = myResult.docs[i].id.toString();
-				imageUrl = reWriteImageUrl(myID);
-				var col = "ui-block-a";
-				if (i%4==1) {
-					col = "ui-block-b";
-				} else if (i%4==2) {
-					col = "ui-block-c";
-				} else if (i%4==3) {
-					col = "ui-block-d";
-				}
-				recent = $( "<div class=\""+col+"\"><div style=\"height:170px\"><img style=\"max-width:160px;max-height:160px;display: block;margin-left: auto;margin-right: auto;\" src=\""+imageUrl+"\" /></div>"
-					+ getCBIRLinks(myID)
-					// + "<a href=\"javascript:extract('http://localhost:9000/solr/images/"+myID+"');\">Extract</a>, "
-					+ "</div>" );
-				last.append(recent);
-				//last=recent;
-			}
+			printResults(myResult.docs);
 		}
 		else {
 			$("#results").html("Error: \""+myResult.Error+"\"");
@@ -367,13 +322,11 @@ function searchUrl(field) {
 	console.log($("#urlq").val());
 	console.log(field);
 	// clear the old data
-	$(".imgCont").remove();
-	$(".imgContLarge").remove();
-	$("#perf").html("Please stand by .... <img src=\"img/loader-light.gif\"/>");
+	clearData();
 	$("#results").html("Results for query \""+$("#urlq").val().substring(0,12)+"...\"");
 
 	// get all the new data from the server ...
-	serverUrl = "lire/lireq?rows=30&url="+$("#urlq").val()+"&field="+field;
+	serverUrl = serverUrlPrefix + "lireq?rows=30&url="+$("#urlq").val()+"&field="+field;
 	if ($("#slider-1").val()) serverUrl += "&accuracy="+$("#slider-1").val();
 	if ($("#slider-can").val()) serverUrl += "&candidates="+$("#slider-can").val();
 
@@ -381,20 +334,7 @@ function searchUrl(field) {
 	$.getJSON( serverUrl, function( myResult ) {
 		$("#perf").html("Index search time: " + myResult.responseHeader.QTime + " ms (query " + myResult.RawDocsSearchTime + " ms, rank " + myResult.ReRankSearchTime  + " ms)");
 		console.log(myResult);
-		
-		var last = $("#results");
-		for (var i =0; i< myResult.docs.length; i++) {
-			myID = myResult.docs[i].id.toString();
-			imageUrl = reWriteImageUrl(myID);
-			recent = $( "<div class=\"imgCont\"><img class=\"lireimg\" src=\""+imageUrl+"\" />"
-				+ "<div class=\"searchLink\">"
-				+ "d="+myResult.docs[i].d+"<br/>"
-				+ getCBIRLinks(myID)
-				+ "</div></div>" );
-			recent.insertAfter(last);
-			last=recent;
-		}
-	
+		printResults(myResult.docs);
 	});
 };    
 
