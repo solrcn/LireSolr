@@ -50,9 +50,7 @@ import org.apache.commons.codec.binary.Base64;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -92,7 +90,7 @@ public class ParallelSolrIndexer implements Runnable {
     boolean ended = false;
     int overallCount = 0;
     OutputStream dos = null;
-    LinkedList<LireFeature> listOfFeatures;
+    Set<Class> listOfFeatures;
 
     File fileList = null;
     File outFile = null;
@@ -103,7 +101,12 @@ public class ParallelSolrIndexer implements Runnable {
 
     public ParallelSolrIndexer() {
         // default constructor.
-        listOfFeatures = new LinkedList<LireFeature>();
+        listOfFeatures = new HashSet<Class>();
+        listOfFeatures.add(PHOG.class);
+        listOfFeatures.add(ColorLayout.class);
+        listOfFeatures.add(EdgeHistogram.class);
+        listOfFeatures.add(JCD.class);
+
     }
 
     /**
@@ -160,8 +163,19 @@ public class ParallelSolrIndexer implements Runnable {
                         System.exit(0);
                     }
                 } else printHelp();
-            } else if (arg.startsWith("-f")) {
+            } else if (arg.startsWith("-f") || arg.startsWith("--force")) {
                 e.setForce(true);
+            } else if (arg.startsWith("-y") || arg.startsWith("--features")) {
+                if ((i + 1) < args.length) {
+                    // parse and check the features.
+                    String[] ft = args[i + 1].split(",");
+                    for (int j = 0; j < ft.length; j++) {
+                        String s = ft[j].trim();
+                        if (FeatureRegistry.getClassForCode(s)!=null) {
+                            e.addFeature(FeatureRegistry.getClassForCode(s));
+                        }
+                    }
+                }
             } else if (arg.startsWith("-p")) {
                 e.setPreprocessing(true);
             } else if (arg.startsWith("-h")) {
@@ -188,16 +202,22 @@ public class ParallelSolrIndexer implements Runnable {
     }
 
     private static void printHelp() {
-        System.out.println("ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>]\n" +
+        System.out.println("This help text is shown if you start the ParallelSolrIndexer with the '-h' option.\n" +
                 "\n" +
-                "Note: if you don't specify an outfile just \".xml\" is appended to the infile for output.\n" +
+                "$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>] \\\\ \n" +
+                "         [-y <list of feature classes>]\n" +
+                "\n" +
+                "Note: if you don't specify an outfile just \".xml\" is appended to the input image for output. So there will be one XML\n" +
+                "file per image. Specifying an outfile will collect the information of all images in one single file.\n" +
                 "\n" +
                 "-n ... number of threads should be something your computer can cope with. default is 4.\n" +
                 "-f ... forces overwrite of outfile\n" +
                 "-p ... enables image processing before indexing (despeckle, trim white space)\n" +
                 "-m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.\n" +
                 "-r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor\n" +
-                "       that provides additional fields. ");
+                "       that provides additional fields.\n" +
+                "-y ... defines which feature classes are to be extracted. default is \"-y ph,cl,eh,jc\". \"-y ce,ac\" would \n" +
+                "       add to the other four features. ");
     }
 
     public static String arrayToString(int[] array) {
@@ -214,7 +234,7 @@ public class ParallelSolrIndexer implements Runnable {
      *
      * @param feature
      */
-    public void addFeature(LireFeature feature) {
+    public void addFeature(Class feature) {
         listOfFeatures.add(feature);
     }
 
@@ -274,6 +294,10 @@ public class ParallelSolrIndexer implements Runnable {
             System.err.println("No text file with a list of images given.");
             return;
         }
+        System.out.println("Extracting features: ");
+        for (Iterator<Class> iterator = listOfFeatures.iterator(); iterator.hasNext(); ) {
+            System.out.println("\t" + iterator.next().getCanonicalName());
+        }
         try {
             if (!individualFiles) {
                 // create a BufferedOutputStream with a large buffer
@@ -311,15 +335,16 @@ public class ParallelSolrIndexer implements Runnable {
     }
 
     private void addFeatures(List features) {
-        // original features
-        features.add(new PHOG());
-        features.add(new ColorLayout());
-        features.add(new EdgeHistogram());
-        features.add(new JCD());
-
-        // new features
-        features.add(new CEDD());
-        features.add(new ScalableColor());
+        for (Iterator<Class> iterator = listOfFeatures.iterator(); iterator.hasNext(); ) {
+            Class next = iterator.next();
+            try {
+                features.add(next.newInstance());
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public boolean isPreprocessing() {

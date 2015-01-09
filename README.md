@@ -9,13 +9,16 @@ a ValeSource Parser for content based re-ranking and a parallel indexing applica
 
 A demo can be found at http://demo-itec.uni-klu.ac.at/liredemo/
 
+If you need help on the plugin, please use the mailing list at http://groups.google.com/group/lire-dev to ask questions.
+If you need help with your project, please contact me, we also offer consulting services.
+
 The request handler supports four different types of queries
 
 1.  Get random images ...
 2.  Get images that are looking like the one with id ...
 3.  Get images looking like the one found at url ...
 4.  Get images with a feature vector like ...
-5.  Extract histogram from an image URL ...
+5.  Extract histogram and hashes from an image URL ...
 
 Preliminaries
 -------------
@@ -77,7 +80,7 @@ Parameters:
 
 Extracting histograms
 ---------------------
-Extracts the histogram of an image for use with the lire sorting function.
+Extracts the histogram and the hashes of an image for use with the lire sorting function.
 
 Parameters:
 
@@ -176,7 +179,8 @@ ParallelSolrIndexer
 ===================
 This help text is shown if you start the ParallelSolrIndexer with the '-h' option.
 
-$> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>]
+    $> ParallelSolrIndexer -i <infile> [-o <outfile>] [-n <threads>] [-f] [-p] [-m <max_side_length>] [-r <full class name>] \\
+             [-y <list of feature classes>]
 
 Note: if you don't specify an outfile just ".xml" is appended to the input image for output. So there will be one XML
 file per image. Specifying an outfile will collect the information of all images in one single file.
@@ -187,6 +191,8 @@ file per image. Specifying an outfile will collect the information of all images
 -m ... maximum side length of images when indexed. All bigger files are scaled down. default is 512.
 -r ... defines a class implementing net.semanticmetadata.lire.solr.indexing.ImageDataProcessor
        that provides additional fields.
+-y ... defines which feature classes are to be extracted. default is "-y ph,cl,eh,jc". "-y ce,ac" would
+       add to the other four features.
 
 INFILE
 ------
@@ -245,4 +251,4 @@ solrconfig.xml, and then give the configuration for the EntityProcessor like thi
         </document>
     </dataConfig>
 
-*Mathias Lux, 2014-12-18*
+*Mathias Lux, 2015-01-09*

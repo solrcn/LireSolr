@@ -51,6 +51,9 @@ public class FeatureRegistry {
         // local feature based histograms.
         codeToClass.put("sim_ce", GenericByteLireFeature.class); // SIMPLE CEDD ... just to give a hint how it might look like.
 
+        // add your features here if you want more.
+        // ....
+
         // -----< caches to be filled >----------------
 
         for (Iterator<String> iterator = codeToClass.keySet().iterator(); iterator.hasNext(); ) {
@@ -111,6 +114,10 @@ public class FeatureRegistry {
 
     public static String getCodeForClass(Class<? extends LireFeature> featureClass) {
         return classToCode.get(featureClass);
+    }
+
+    public static Class getClassForCode(String code) {
+        return codeToClass.get(code);
     }
 
     public static String codeToHashField(String code) {
