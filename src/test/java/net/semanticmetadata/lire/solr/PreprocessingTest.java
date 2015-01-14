@@ -32,4 +32,8 @@ public class PreprocessingTest extends TestCase {
 
         ImageIO.write(img, "png", new File("testdata/"+num+".png"));
     }
+
+    public void testSplit() {
+        System.out.println("test:rest".split(":")[1]);
+    }
 }

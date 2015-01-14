@@ -32,6 +32,11 @@ Supported values for feature field parameters, e.g. lireq?field=cl_ha:
 -  **ce_ha** .. CEDD
 -  **sc_ha** .. ScalableColor
 
+The field parameter (partially) works with the LIRE request handler:
+
+-  **fl** .. Fields, give them as a comma or space separated list, like "fl=title,id,score". Note that "*" is denoting all fields and score adds the distance (which already comes with the "d" fields) in an additional score field.
+-  **fq** .. Filter query, give them as a comma separated list in the format "fq=tags:dog tags:funny". No wildcards and no spaces in terms supported for now.
+
 Getting random images
 ---------------------
 Returns randomly chosen images from the index.
@@ -251,4 +256,4 @@ solrconfig.xml, and then give the configuration for the EntityProcessor like thi
         </document>
     </dataConfig>
 
-*Mathias Lux, 2015-01-09*
+*Mathias Lux, 2015-01-14*
