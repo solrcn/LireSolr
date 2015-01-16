@@ -12,6 +12,10 @@ A demo can be found at http://demo-itec.uni-klu.ac.at/liredemo/
 If you need help on the plugin, please use the mailing list at http://groups.google.com/group/lire-dev to ask questions.
 If you need help with your project, please contact me, we also offer consulting services.
 
+If you use LIRE Solr for scientific purposes, please cite the following paper: 
+
+Lux, Mathias, and Glenn Macstravic. "The LIRE Request Handler: A Solr Plug-In for Large Scale Content Based Image Retrieval." MultiMedia Modeling. Springer International Publishing, 2014.
+
 The request handler supports four different types of queries
 
 1.  Get random images ...
