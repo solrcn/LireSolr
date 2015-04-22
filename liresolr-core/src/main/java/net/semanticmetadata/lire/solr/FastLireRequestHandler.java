@@ -39,6 +39,7 @@
 
 package net.semanticmetadata.lire.solr;
 
+import com.google.common.collect.Lists;
 import net.semanticmetadata.lire.imageanalysis.EdgeHistogram;
 import net.semanticmetadata.lire.imageanalysis.LireFeature;
 import net.semanticmetadata.lire.impl.SimpleResult;
@@ -70,7 +71,7 @@ import java.util.*;
  * @author Mathias Lux, mathias@juggle.at, 07.07.13
  */
 
-public class LireRequestHandler extends RequestHandlerBase {
+public class FastLireRequestHandler extends RequestHandlerBase {
     //    private static HashMap<String, Class> fieldToClass = new HashMap<String, Class>(5);
     private long time = 0;
     private int countRequests = 0;
@@ -155,11 +156,26 @@ public class LireRequestHandler extends RequestHandlerBase {
             numberOfQueryTerms = req.getParams().getDouble("accuracy", DEFAULT_NUMBER_OF_QUERY_TERMS);
             numberOfCandidateResults = req.getParams().getInt("candidates", DEFAULT_NUMBER_OF_CANDIDATES);
             if (hits.scoreDocs.length > 0) {
+
+
                 // Using DocValues to get the actual data from the index.
-                BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), FeatureRegistry.getFeatureFieldName(paramField)); // ***  #
-                if (binaryValues == null)
-                    System.err.println("Could not find the DocValues of the query document. Are they in the index?");
-                BytesRef bytesRef = new BytesRef();
+//                BinaryDocValues binaryValues = MultiDocValues.getBinaryValues(searcher.getIndexReader(), FeatureRegistry.getFeatureFieldName(paramField)); // ***  #
+//                if (binaryValues == null)
+//                    System.err.println("Could not find the DocValues of the query document. Are they in the index?");
+//                BytesRef bytesRef = new BytesRef();
+                SortedSetDocValues sortedSetValues = MultiDocValues.getSortedSetValues(searcher.getIndexReader(), paramField);
+                long valueCount = sortedSetValues.getValueCount();
+                List<Term> termFilter = Lists.newArrayList();
+                for (int i = 0; i < valueCount; i++) {
+                    BytesRef v = new BytesRef();
+                    sortedSetValues.lookupOrd(i,v);
+                    termFilter.add(new Term(paramField,v));
+                }
+                int[] hashes=null;
+                int paramRows = defaultNumberOfResults;
+                if (req.getParams().getInt("rows") != null)
+                    paramRows = req.getParams().getInt("rows");
+/**
 //                bytesRef = binaryValues.get(hits.scoreDocs[0].doc);
                 binaryValues.get(hits.scoreDocs[0].doc,bytesRef);
 //                Document d = searcher.getIndexReader().document(hits.scoreDocs[0].doc);
@@ -171,7 +187,8 @@ public class LireRequestHandler extends RequestHandlerBase {
                 // Re-generating the hashes to save sgenerateHashespace (instead of storing them in the index)
                 int[] hashes = BitSampling.generateHashes(queryFeature.getDoubleHistogram());
                 List<Term> termFilter = createTermFilter(hashes, paramField);
-                doSearch(req, rsp, searcher, paramField, paramRows, termFilter, createQuery(termFilter, paramField, numberOfQueryTerms), queryFeature);
+                **/
+                doSearch(req, rsp, searcher, paramField, paramRows, termFilter, createQuery(hashes, paramField, numberOfQueryTerms), queryFeature);
             } else {
                 rsp.add("Error", "Did not find an image with the given id " + req.getParams().get("id"));
             }
@@ -505,21 +522,6 @@ public class LireRequestHandler extends RequestHandlerBase {
         for (int i = 0; i < numHashes; i++) {
             // be aware that the hashFunctionsFileName of the field must match the one you put the hashes in before.
             query.add(new BooleanClause(new TermQuery(new Term(paramField, Integer.toHexString(hashes[i]))), BooleanClause.Occur.SHOULD));
-        }
-        // this query is just for boosting the results with more matching hashes. We'd need to match it to all docs.
-//        query.add(new BooleanClause(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD));
-        return query;
-    }
-
-    private BooleanQuery createQuery(List<Term> termFilter, String paramField, double size) {
-                Collections.shuffle(termFilter);
-        BooleanQuery query = new BooleanQuery();
-        int numHashes = (int) Math.min(termFilter.size(), Math.floor(termFilter.size() * size));
-        // a minimum of 3 hashes ...
-        if (numHashes < 3) numHashes = 3;
-        for (int i = 0; i < numHashes; i++) {
-            // be aware that the hashFunctionsFileName of the field must match the one you put the hashes in before.
-            query.add(new BooleanClause(new TermQuery(termFilter.get(i)), BooleanClause.Occur.SHOULD));
         }
         // this query is just for boosting the results with more matching hashes. We'd need to match it to all docs.
 //        query.add(new BooleanClause(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD));
