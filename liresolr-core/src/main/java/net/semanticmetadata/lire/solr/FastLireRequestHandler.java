@@ -168,26 +168,26 @@ public class FastLireRequestHandler extends RequestHandlerBase {
                 List<Term> termFilter = Lists.newArrayList();
                 for (int i = 0; i < valueCount; i++) {
                     BytesRef v = new BytesRef();
-                    sortedSetValues.lookupOrd(i,v);
-                    termFilter.add(new Term(paramField,v));
+                    sortedSetValues.lookupOrd(i, v);
+                    termFilter.add(new Term(paramField, v));
                 }
-                int[] hashes=null;
+                int[] hashes = null;
                 int paramRows = defaultNumberOfResults;
                 if (req.getParams().getInt("rows") != null)
                     paramRows = req.getParams().getInt("rows");
 /**
-//                bytesRef = binaryValues.get(hits.scoreDocs[0].doc);
-                binaryValues.get(hits.scoreDocs[0].doc,bytesRef);
-//                Document d = searcher.getIndexReader().document(hits.scoreDocs[0].doc);
-//                String histogramFieldName = paramField.replace("_ha", "_hi");
-                queryFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
-                int paramRows = defaultNumberOfResults;
-                if (req.getParams().getInt("rows") != null)
-                    paramRows = req.getParams().getInt("rows");
-                // Re-generating the hashes to save sgenerateHashespace (instead of storing them in the index)
-                int[] hashes = BitSampling.generateHashes(queryFeature.getDoubleHistogram());
-                List<Term> termFilter = createTermFilter(hashes, paramField);
-                **/
+ //                bytesRef = binaryValues.get(hits.scoreDocs[0].doc);
+ binaryValues.get(hits.scoreDocs[0].doc,bytesRef);
+ //                Document d = searcher.getIndexReader().document(hits.scoreDocs[0].doc);
+ //                String histogramFieldName = paramField.replace("_ha", "_hi");
+ queryFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
+ int paramRows = defaultNumberOfResults;
+ if (req.getParams().getInt("rows") != null)
+ paramRows = req.getParams().getInt("rows");
+ // Re-generating the hashes to save sgenerateHashespace (instead of storing them in the index)
+ int[] hashes = BitSampling.generateHashes(queryFeature.getDoubleHistogram());
+ List<Term> termFilter = createTermFilter(hashes, paramField);
+ **/
                 doSearch(req, rsp, searcher, paramField, paramRows, termFilter, createQuery(hashes, paramField, numberOfQueryTerms), queryFeature);
             } else {
                 rsp.add("Error", "Did not find an image with the given id " + req.getParams().get("id"));
@@ -383,17 +383,17 @@ public class FastLireRequestHandler extends RequestHandlerBase {
 
         Filter filter = null;
         // if the request contains a filter:
-        if (req.getParams().get("fq")!=null) {
+        if (req.getParams().get("fq") != null) {
             // only filters with [<field>:<value> ]+ are supported
             StringTokenizer st = new StringTokenizer(req.getParams().get("fq"), " ");
             LinkedList<Term> filterTerms = new LinkedList<Term>();
             while (st.hasMoreElements()) {
                 String[] tmpToken = st.nextToken().split(":");
-                if (tmpToken.length>1) {
+                if (tmpToken.length > 1) {
                     filterTerms.add(new Term(tmpToken[0], tmpToken[1]));
                 }
             }
-            if (filterTerms.size()>0)
+            if (filterTerms.size() > 0)
                 filter = new TermsFilter(filterTerms);
         }
 
@@ -420,7 +420,7 @@ public class FastLireRequestHandler extends RequestHandlerBase {
         BytesRef bytesRef = new BytesRef();
         for (int i = 0; i < docs.scoreDocs.length; i++) {
             // using DocValues to retrieve the field values ...
-            binaryValues.get(docs.scoreDocs[i].doc,bytesRef);
+            binaryValues.get(docs.scoreDocs[i].doc, bytesRef);
             tmpFeature.setByteArrayRepresentation(bytesRef.bytes, bytesRef.offset, bytesRef.length);
             // Getting the document from the index.
             // This is the slow step based on the field compression of stored fields.
