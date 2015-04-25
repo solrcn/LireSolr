@@ -1,11 +1,11 @@
-package net.semanticmetadata.lire.solr;
+package org.solrcn.mapreduce.lire;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
 import com.jhlabs.image.DespeckleFilter;
 import net.semanticmetadata.lire.imageanalysis.*;
 import net.semanticmetadata.lire.indexing.hashing.BitSampling;
+import net.semanticmetadata.lire.solr.FeatureRegistry;
 import net.semanticmetadata.lire.solr.indexing.ImageDataProcessor;
 import net.semanticmetadata.lire.utils.ImageUtils;
 import org.apache.commons.codec.binary.Base64;
@@ -14,7 +14,6 @@ import org.apache.solr.common.SolrInputDocument;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -81,11 +80,11 @@ public class ImageToDocument {
         features.add(feature);
     }
 
-    private List<LireFeature> getFeatures(List features) {
+    private List<LireFeature> getFeatures() {
         return features;
     }
 
-    public String arrayToString(int[] array) {
+    public String arrayToString(final int[] array) {
         StringBuilder sb = new StringBuilder(array.length * 8);
         for (int i = 0; i < array.length; i++) {
             if (i > 0) sb.append(' ');
@@ -95,8 +94,8 @@ public class ImageToDocument {
     }
 
     public BufferedImage getImgFromUrl(final String fileUrl) throws IOException {
-        BufferedImage read = ImageIO.read(new URL(fileUrl.replaceAll(" ", "%20")).openStream());
-        BufferedImage img = ImageUtils.createWorkingCopy(read);
+        BufferedImage img = ImageIO.read(new URL(fileUrl.replaceAll(" ", "%20")).openStream());
+//        BufferedImage img = ImageUtils.createWorkingCopy(read);
         DespeckleFilter df = new DespeckleFilter();
         img = df.filter(img, null);
         img = ImageUtils.trimWhiteSpace(img); // trims white space
@@ -161,7 +160,7 @@ public class ImageToDocument {
         return doc;
     }
 
-    public Map<String, int[]> getImg(String fileUrl) throws IOException {
+    public Map<String, int[]> getImg(final String fileUrl) throws IOException {
         BufferedImage img = getImgFromUrl(fileUrl);
 
         Map<String, int[]> fm = Maps.newHashMap();
@@ -173,24 +172,23 @@ public class ImageToDocument {
         return fm;
     }
 
-
-    public static void main(String[] args) throws Exception {
-
-
-        ImageToDocument imageToDocument = new ImageToDocument();
-        String fileUrl = "http://www.solr.cc/weixin/weixin.jpg";
-        Map<String, int[]> img = imageToDocument.getImg(fileUrl);
-        for(Map.Entry<String,int[]> entry : img.entrySet()){
-            int[] value = entry.getValue();
-            StringBuilder sb = new StringBuilder(entry.getKey()).append("(").append(value.length).append(")").append(" : ");
-
-            for (int i = 0; i < value.length; i++) {
-                sb.append(value[i]).append(" ");
+    public String getFseMessage(final String id, final String fileUrl) throws IOException {
+        BufferedImage img = getImgFromUrl(fileUrl);
+        StringBuilder sb = new StringBuilder();
+        sb.append(uniqueKey).append("\2").append(id).append("\1");
+        Map<String, int[]> fm = Maps.newHashMap();
+        for (LireFeature feature : features) {
+            feature.extract(img);
+            String featureCode = FeatureRegistry.getCodeForClass(feature.getClass());
+            if (featureCode != null) {
+                String histogramField = FeatureRegistry.codeToFeatureField(featureCode);
+                String hashesField = FeatureRegistry.codeToHashField(featureCode);
+                sb.append(histogramField).append("\2").append(Base64.encodeBase64String(feature.getByteArrayRepresentation())).append("\1");
+                sb.append(hashesField).append("\2").append(arrayToString(BitSampling.generateHashes(feature.getDoubleHistogram()))).append("\1");
             }
-            sb.deleteCharAt(sb.length()-1);
-            System.out.println(sb.toString());
-          
+        }
+        sb.deleteCharAt(sb.length()-1);
+        return sb.toString();
+    }
 
-    }
-    }
 }
